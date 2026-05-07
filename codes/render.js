@@ -1,7 +1,7 @@
 import {
-  state, chunkSize,
+  sizeState, mouseState, chunkState, mapState, brushState, cameraState,
   cellSize, contour, DEFAULT_COLOR,
-  blockColors, layerColors,
+  blockColors, layerColors, chunkSize
 } from "./state.js";
 import { nameToId } from "./nameMap.js";
 
@@ -23,34 +23,34 @@ function getColor(blockName) {
 const colorCache = new Map();
 
 export function updateBlockMap() {
-  const newMap = Array.from({ length: state.maxHeight }, () =>
-    Array.from({ length: state.heightLength }, () =>
-      new Array(state.widthLength).fill(0)
+  const newMap = Array.from({ length: sizeState.maxHeight }, () =>
+    Array.from({ length: sizeState.heightLength }, () =>
+      new Array(sizeState.widthLength).fill(0)
     )
   );
 
-  for (let z = 0; z < state.heightLength; z++) {
-    for (let x = 0; x < state.widthLength; x++) {
-      const h = Math.floor(state.map[z][x]);
-      for (let y = 0; y <= h && y < state.maxHeight; y++) {
-        if (state.blockMap[y][z][x] === 0) {
+  for (let z = 0; z < sizeState.heightLength; z++) {
+    for (let x = 0; x < sizeState.widthLength; x++) {
+      const h = Math.floor(mapState.map[z][x]);
+      for (let y = 0; y <= h && y < sizeState.maxHeight; y++) {
+        if (mapState.blockMap[y][z][x] === 0) {
           newMap[y][z][x] = 4;
         } else {
-          newMap[y][z][x] = state.blockMap[y][z][x];
+          newMap[y][z][x] = mapState.blockMap[y][z][x];
         }
       }
     }
   }
 
-  state.blockMap = newMap;
+  mapState.blockMap = newMap;
 }
 
 function drawBrushPreview(canvas){ 
   const ctx = canvas.getContext("2d"); 
-  const radius = state.brushRadius * cellSize * state.zoom; 
+  const radius = brushState.brushRadius * cellSize * cameraState.zoom; 
   ctx.beginPath(); 
   ctx.setLineDash([10, 4])
-  ctx.arc(state.mouseX, state.mouseY, radius, 0, Math.PI * 2); 
+  ctx.arc(mouseState.mouseX, mouseState.mouseY, radius, 0, Math.PI * 2); 
   ctx.strokeStyle = "black";
   ctx.lineWidth = 2; 
   ctx.stroke(); 
@@ -61,13 +61,13 @@ function drawChunkGrid(ctx, canvas, size, startX, startY, endX, endY) {
   ctx.strokeStyle = "rgba(255,255,255,0.2)"; 
   ctx.lineWidth = 1; 
   for (let x = Math.floor(startX / chunk) * chunk; x <= endX; x += chunk) {
-    const px = x * size + state.camX; 
+    const px = x * size + cameraState.camX; 
     ctx.beginPath(); ctx.moveTo(px, 0); 
     ctx.lineTo(px, canvas.height); 
     ctx.stroke(); 
   } 
   for (let y = Math.floor(startY / chunk) * chunk; y <= endY; y += chunk) {
-    const py = y * size + state.camY; 
+    const py = y * size + cameraState.camY; 
     ctx.beginPath(); ctx.moveTo(0, py); 
     ctx.lineTo(canvas.width, py); 
     ctx.stroke(); 
@@ -77,10 +77,10 @@ function drawChunkGrid(ctx, canvas, size, startX, startY, endX, endY) {
 export function renderChunk(cx, cy){
   const size = cellSize;
 
-  let canvas = state.chunkCanvas[cy][cx];
+  let canvas = chunkState.chunkCanvas[cy][cx];
   if(!canvas){
     canvas = document.createElement("canvas");
-    state.chunkCanvas[cy][cx] = canvas;
+    chunkState.chunkCanvas[cy][cx] = canvas;
   }
 
   canvas.width = chunkSize * size;
@@ -91,37 +91,45 @@ export function renderChunk(cx, cy){
 
   const startX = cx * chunkSize;
   const startY = cy * chunkSize;
-  const endX = Math.min(startX + chunkSize, state.widthLength);
-  const endY = Math.min(startY + chunkSize, state.heightLength);
+  const endX = Math.min(startX + chunkSize, sizeState.widthLength);
+  const endY = Math.min(startY + chunkSize, sizeState.heightLength);
 
   ctx.beginPath();
 
   for(let y = startY; y < endY; y++){
-    const row = state.map[y];
-    const layerRow = state.layerMap[y];
+    const row = mapState.map[y];
+    const layerRow = mapState.layerMap[y];
 
     for(let x = startX; x < endX; x++){
 
       const h = row[x] | 0;
-      const blockY = h < state.maxHeight ? h : state.maxHeight - 1;
-      const topY = Math.floor(state.map[y][x]);
+      const blockY = h < sizeState.maxHeight ? h : sizeState.maxHeight - 1;
+      const topY = Math.min(
+        sizeState.maxHeight - 1,
+        Math.max(0, Math.floor(mapState.map[y][x] || 0))
+      );
+
+      const topRow = mapState.topBlockMap[y];
+      const blockLayer = mapState.blockMap[topY];
 
       const blockId =
-        state.topBlockMap[y]?.[x] ??
-        state.blockMap[topY]?.[y]?.[x] ??
-        0;
+        (topRow && topRow[x] != null)
+          ? topRow[x]
+          : (blockLayer && blockLayer[y] && blockLayer[y][x] != null)
+            ? blockLayer[y][x]
+            : 0;
 
       const blockName = idToName[blockId] ?? "Air";
 
-      const isUnderWater = h < state.waterLevel;
+      const isUnderWater = h < mapState.waterLevel;
       const px = (x - startX) * size;
       const py = (y - startY) * size;
 
       ctx.fillStyle = getColor(blockName);
       ctx.fillRect(px, py, size, size);
 
-      const hLeft = state.map[y][x-1] ?? h;
-      const hUp = state.map[y-1]?.[x] ?? h;
+      const hLeft = mapState.map[y][x-1] ?? h;
+      const hUp = mapState.map[y-1]?.[x] ?? h;
 
       const shadowStrength = Math.max(
         hLeft - h,
@@ -141,7 +149,7 @@ export function renderChunk(cx, cy){
       if(layer){
         const c = layerColors[layer];
         if(c){
-          ctx.fillStyle = (layer === state.selectedLayer)
+          ctx.fillStyle = (layer === brushState.selectedLayer)
             ? "rgba(50,255,50,0.5)"
             : `rgba(${c[0]},${c[1]},${c[2]},0.35)`;
           ctx.fillRect(px, py, size, size);
@@ -150,7 +158,7 @@ export function renderChunk(cx, cy){
 
       const level = (h / contour) | 0;
 
-      if (x < state.widthLength - 1) {
+      if (x < sizeState.widthLength - 1) {
         const rightLevel = ((row[x+1]) / contour) | 0;
         if (level !== rightLevel) {
           ctx.moveTo((x-startX+1)*size, (y-startY)*size);
@@ -158,8 +166,8 @@ export function renderChunk(cx, cy){
         }
       }
 
-      if (y < state.heightLength - 1) {
-        const downLevel = ((state.map[y+1][x]) / contour) | 0;
+      if (y < sizeState.heightLength - 1) {
+        const downLevel = ((mapState.map[y+1][x]) / contour) | 0;
         if (level !== downLevel) {
           ctx.moveTo((x-startX)*size, (y-startY+1)*size);
           ctx.lineTo((x-startX+1)*size, (y-startY+1)*size);
@@ -169,7 +177,7 @@ export function renderChunk(cx, cy){
   }
 
   ctx.strokeStyle = "black";
-  ctx.lineWidth = Math.max(1, 2 / state.zoom);
+  ctx.lineWidth = Math.max(1, 2 / cameraState.zoom);
   ctx.stroke();
 }
 
@@ -179,36 +187,36 @@ export function draw(canvas){
 
   ctx.imageSmoothingEnabled = false;
 
-  const size = cellSize * state.zoom;
+  const size = cellSize * cameraState.zoom;
 
   const chunkPixel = chunkSize * size;
 
-  const startChunkX = Math.max(0, Math.floor(-state.camX / chunkPixel));
-  const startChunkY = Math.max(0, Math.floor(-state.camY / chunkPixel));
-  const endChunkX = Math.min(state.chunkCols, Math.ceil((canvas.width - state.camX) / chunkPixel));
-  const endChunkY = Math.min(state.chunkRows, Math.ceil((canvas.height - state.camY) / chunkPixel));
+  const startChunkX = Math.max(0, Math.floor(-cameraState.camX / chunkPixel));
+  const startChunkY = Math.max(0, Math.floor(-cameraState.camY / chunkPixel));
+  const endChunkX = Math.min(chunkState.chunkCols, Math.ceil((canvas.width - cameraState.camX) / chunkPixel));
+  const endChunkY = Math.min(chunkState.chunkRows, Math.ceil((canvas.height - cameraState.camY) / chunkPixel));
 
-  for(const key of state.dirtyChunks){
+  for(const key of chunkState.dirtyChunks){
     const [cx, cy] = key.split(",").map(Number);
     renderChunk(cx, cy);
   }
-  state.dirtyChunks.clear();
+  chunkState.dirtyChunks.clear();
 
   for(let cy = startChunkY; cy < endChunkY; cy++){
     for(let cx = startChunkX; cx < endChunkX; cx++){
 
-      const chunk = state.chunkCanvas[cy][cx];
+      const chunk = chunkState.chunkCanvas[cy][cx];
       if(!chunk) continue;
 
-      const px = Math.round(cx * chunkPixel + state.camX);
-      const py = Math.round(cy * chunkPixel + state.camY);
+      const px = Math.round(cx * chunkPixel + cameraState.camX);
+      const py = Math.round(cy * chunkPixel + cameraState.camY);
 
       ctx.drawImage(
         chunk,
         px,
         py,
-        Math.round(chunk.width * state.zoom),
-        Math.round(chunk.height * state.zoom)
+        Math.round(chunk.width * cameraState.zoom),
+        Math.round(chunk.height * cameraState.zoom)
       );
     }
   }

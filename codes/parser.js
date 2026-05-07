@@ -1,8 +1,8 @@
 import avro from "https://esm.sh/avsc@5.7.9";
 import { Buffer } from "https://esm.sh/buffer";
 import { nameToId } from "./nameMap.js";
-import { state, treesStructures } from "./state.js";
-import { resizeMapEmpty, resizeHeightEmpty } from "./utils.js";
+import { treesStructures, mapState, sizeState, chunkState, brushState} from "./state.js";
+import { resizeMapEmpty, resizeHeightEmpty } from "./chunk.js";
 
 const schema0 = avro.Type.forSchema({
 	type: "record",
@@ -35,75 +35,111 @@ const schema0 = avro.Type.forSchema({
 });
 const chunkSize = 32;
 
-function getMaxUsedHeight(state) {
+function getMaxUsedHeight() {
 	let max = 0;
-	for (let z = 0; z < state.heightLength; z++) {
-		for (let x = 0; x < state.widthLength; x++) {
-			const h = state.map[z][x];
+	for (let z = 0; z < sizeState.heightLength; z++) {
+		for (let x = 0; x < sizeState.widthLength; x++) {
+			const h = mapState.map[z][x];
 			if (h > max) max = h;
 		}
 	}
 	return max;
 }
 
-export function growForest(state, pine, spacing = 8){
-  const width = state.widthLength;
-  const height = state.heightLength;
+export function growForest(pattern, spacing = 8) {
+  const width = sizeState.widthLength;
+  const height = sizeState.heightLength;
 
-  const patternHeight = pine.length;     
-  const patternDepth = pine[0].length;   
-  const patternWidth = pine[0][0].length;
+  for (let z = 0; z < height; z += spacing) {
+    for (let x = 0; x < width; x += spacing) {
 
-  const centerPX = Math.floor(patternWidth / 2);
-  const centerPZ = Math.floor(patternDepth / 2);
+      const pos = getRandomOffset(x, z, spacing);
+      if (!canPlace(pos, pattern)) continue;
 
-  for(let z = 0; z < height; z += spacing){
-    for(let x = 0; x < width; x += spacing){
-      const nx = x + Math.floor(Math.random() * (spacing/2)) - Math.floor(spacing/4);
-      const nz = z + Math.floor(Math.random() * (spacing/2)) - Math.floor(spacing/4);
+      const yStart = getSurfaceY(pos);
+      placePattern(pattern, pos, yStart);
+    }
+  }
+}
 
-      if(nx < 0 || nz < 0 || nx + patternWidth > width || nz + patternDepth > height) continue;
+function getRandomOffset(x, z, spacing) {
+  return {
+    x: x + Math.floor(Math.random() * (spacing / 2)) - (spacing >> 2),
+    z: z + Math.floor(Math.random() * (spacing / 2)) - (spacing >> 2),
+  };
+}
 
-      const cx = nx + centerPX;
-      const cz = nz + centerPZ;
+function canPlace(pos, pattern) {
+  const width = sizeState.widthLength;
+  const height = sizeState.heightLength;
 
-      if(!state.layerMap[cz][cx] || state.layerMap[cz][cx] !== state.selectedLayer) continue;
+  const pW = pattern[0][0].length;
+  const pD = pattern[0].length;
 
-      let centerYTop = -1;
-      for(let y = state.maxHeight - 1; y >= 0; y--){
-        if(state.blockMap[y][cz][cx] !== 0){
-          centerYTop = y;
-          break;
-        }
-      }
-      const surfaceHeight = Math.floor(state.map[cz][cx] || 0);
-      const yStart = Math.max(surfaceHeight, centerYTop + 1);
+  if (
+    pos.x < 0 || pos.z < 0 ||
+    pos.x + pW > width ||
+    pos.z + pD > height
+  ) return false;
 
-      for(let py = 0; py < patternHeight; py++){    
-        for(let pz = 0; pz < patternDepth; pz++){   
-          for(let px = 0; px < patternWidth; px++){ 
-            const blockId = pine[py][pz][px];
-            if(blockId === 0) continue;
+  const cx = pos.x + (pW >> 1);
+  const cz = pos.z + (pD >> 1);
 
-            const wx = nx + px;    
-            const wz = nz + py;    
-            const wy = yStart + pz;
+  return mapState.layerMap[cz]?.[cx] === brushState.selectedLayer;
+}
 
-            if(wx < 0 || wz < 0 || wx >= width || wz >= height || wy >= state.maxHeight) continue;
-            if(!state.layerMap[wz][wx] || state.layerMap[wz][wx] !== state.selectedLayer) continue;
-            state.blockMap[wy][wz][wx] = blockId;
-          }
-        }
+function getSurfaceY(pos) {
+  const x = pos.x;
+  const z = pos.z;
+
+  const surface = Math.floor(mapState.map[z][x] || 0);
+
+  for (let y = sizeState.maxHeight - 1; y >= 0; y--) {
+    if (mapState.blockMap[y][z][x] !== 0) {
+      return Math.max(surface, y + 1);
+    }
+  }
+
+  return surface;
+}
+
+function placePattern(pattern, pos, yStart) {
+  const pH = pattern.length;
+  const pD = pattern[0].length;
+  const pW = pattern[0][0].length;
+
+  for (let py = 0; py < pH; py++) {
+    for (let pz = 0; pz < pD; pz++) {
+      for (let px = 0; px < pW; px++) {
+
+        const id = pattern[py][pz][px];
+        if (id === 0) continue;
+        
+        // pattern[z][y][x]
+        const wx = pos.x + px;
+        const wy = yStart + pz;
+        const wz = nz + py;
+
+        if (
+          wx < 0 || wz < 0 ||
+          wx >= sizeState.widthLength ||
+          wz >= sizeState.heightLength ||
+          wy >= sizeState.maxHeight
+        ) continue;
+
+        if (mapState.layerMap[wz]?.[wx] !== brushState.selectedLayer) continue;
+
+        mapState.blockMap[wy][wz][wx] = id;
       }
     }
   }
 }
 
-function convertChunks(state) {
+function convertChunks() {
   const chunks = [];
-  const chunkCountX = state.chunkLenX;
-  const chunkCountZ = state.chunkLenZ;
-  const maxUsedHeight = getMaxUsedHeight(state);
+  const chunkCountX = sizeState.chunkLenX;
+  const chunkCountZ = sizeState.chunkLenZ;
+  const maxUsedHeight = getMaxUsedHeight();
   const chunkCountY = Math.ceil(maxUsedHeight / chunkSize);
 
   for (let cx = 0; cx < chunkCountX; cx++) {
@@ -119,23 +155,10 @@ function convertChunks(state) {
               const wy = cy * chunkSize + y;
               let id = 0;
 
-              if (wx < state.widthLength && wz < state.heightLength && wy < state.maxHeight) {
-                const surfaceBlock = state.blockMap[wy]?.[wz]?.[wx];
+              if (wx < sizeState.widthLength && wz < sizeState.heightLength && wy < sizeState.maxHeight) {
+                const surfaceBlock = mapState.blockMap[wy]?.[wz]?.[wx];
                 if (surfaceBlock && surfaceBlock !== 0) {
                   id = surfaceBlock;
-                } else {
-                  /*
-                  const height = Math.floor(state.map[wz][wx]);
-                  if (wy > height) {
-                    id = 0; // 空気
-                  } else if (wy === height) {
-                    id = 1; // 草
-                  } else if (wy >= height - 3) {
-                    id = nameToId.Dirt;
-                  } else {
-                    id = nameToId.Stone;
-                  }
-                  */
                 }
               }
 
@@ -171,7 +194,7 @@ function convertChunks(state) {
   const sizeZ = (maxCZ - minCZ + 1) * chunkSize;
 
   return {
-    name: state.fileName || "schem",
+    name: mapState.fileName || "schem",
     pos: [0, 0, 0],
     size: [sizeX, sizeY, sizeZ],
     chunks
@@ -239,10 +262,10 @@ async function loadSchemAsWorld(result) {
   await resizeMapEmpty(Math.ceil(width / chunkSize), Math.ceil(depth / chunkSize));
   await resizeHeightEmpty(height);
 
-  for (let y = 0; y < state.maxHeight; y++) {
-    for (let z = 0; z < state.heightLength; z++) {
-      for (let x = 0; x < state.widthLength; x++) {
-        state.blockMap[y][z][x] = 0;
+  for (let y = 0; y < sizeState.maxHeight; y++) {
+    for (let z = 0; z < sizeState.heightLength; z++) {
+      for (let x = 0; x < sizeState.widthLength; x++) {
+        mapState.blockMap[y][z][x] = 0;
       }
     }
   }
@@ -251,23 +274,23 @@ async function loadSchemAsWorld(result) {
 }
 
 function rebuildHeight() {
-  for (let z = 0; z < state.heightLength; z++) {
-    for (let x = 0; x < state.widthLength; x++) {
+  for (let z = 0; z < sizeState.heightLength; z++) {
+    for (let x = 0; x < sizeState.widthLength; x++) {
 
       let found = false;
 
-      for (let y = state.maxHeight - 1; y >= 0; y--) {
-        if (state.blockMap[y][z][x] !== 0) {
-          state.map[z][x] = y;
-          state.topBlockMap[z][x] = state.blockMap[y][z][x];
+      for (let y = sizeState.maxHeight - 1; y >= 0; y--) {
+        if (mapState.blockMap[y][z][x] !== 0) {
+          mapState.map[z][x] = y;
+          mapState.topBlockMap[z][x] = mapState.blockMap[y][z][x];
           found = true;
           break;
         }
       }
 
       if (!found) {
-        state.map[z][x] = 0;
-        state.topBlockMap[z][x] = null;
+        mapState.map[z][x] = 0;
+        mapState.topBlockMap[z][x] = null;
       }
     }
   }
@@ -283,12 +306,12 @@ function applyParsed(result, bounds) {
 
     if (
       x < 0 || z < 0 ||
-      x >= state.widthLength ||
-      z >= state.heightLength ||
-      y >= state.maxHeight
+      x >= sizeState.widthLength ||
+      z >= sizeState.heightLength ||
+      y >= sizeState.maxHeight
     ) continue;
 
-    state.blockMap[y][z][x] = b.id;
+    mapState.blockMap[y][z][x] = b.id;
   }
 
   rebuildHeight();
@@ -353,7 +376,7 @@ async function downloadSchems(result) {
   const zip = new JSZip();
 
   result.schems.forEach((bin, i) => {
-    const fileName = `${state.fileName || "schem"}${i}.bloxdschem`;
+    const fileName = `${mapState.fileName || "schem"}${i}.bloxdschem`;
     zip.file(fileName, bin);
   });
   
@@ -362,7 +385,7 @@ async function downloadSchems(result) {
   const url = URL.createObjectURL(content);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${state.fileName || "data"}.zip`;
+  a.download = `${mapState.fileName || "data"}.zip`;
   a.click();
 
   URL.revokeObjectURL(url);
@@ -371,13 +394,13 @@ async function downloadSchems(result) {
 export function downloadJSON() {
   const data = {
     version: 1,
-    map: state.map,
-    topBlockMap: state.topBlockMap,
-    layerMap: state.layerMap,
+    map: mapState.map,
+    topBlockMap: mapState.topBlockMap,
+    layerMap: mapState.layerMap,
     meta: {
-      width: state.widthLength,
-      height: state.heightLength,
-      maxHeight: state.maxHeight,
+      width: sizeState.widthLength,
+      height: sizeState.heightLength,
+      maxHeight: sizeState.maxHeight,
       time: Date.now()
     }
   };
@@ -409,8 +432,8 @@ export function importJSON(file) {
       const targetChunkZ = Math.ceil(data.meta.height / chunkSize);
 
       if (
-        targetChunkX !== state.chunkLenX ||
-        targetChunkZ !== state.chunkLenZ
+        targetChunkX !== sizeState.chunkLenX ||
+        targetChunkZ !== sizeState.chunkLenZ
       ) {
         const ok = confirm("マップサイズが違います。リサイズして読み込みますか？");
         if (!ok) return;
@@ -418,24 +441,24 @@ export function importJSON(file) {
         await resizeMap(targetChunkX, targetChunkZ);
       }
 
-      if (data.meta.maxHeight !== state.maxHeight) {
+      if (data.meta.maxHeight !== sizeState.maxHeight) {
         await resizeHeight(data.meta.maxHeight);
       }
 
-      state.map = data.map;
-      state.topBlockMap = data.topBlockMap ?? null;
-      state.layerMap = data.layerMap ?? null;
+      mapState.map = data.map;
+      mapState.topBlockMap = data.topBlockMap ?? null;
+      mapState.layerMap = data.layerMap ?? null;
 
-      for (let y = 0; y < state.heightLength; y++) {
-        for (let x = 0; x < state.widthLength; x++) {
-          rebuildColumn(x, y, state.map[y][x]);
+      for (let y = 0; y < sizeState.heightLength; y++) {
+        for (let x = 0; x < sizeState.widthLength; x++) {
+          rebuildColumn(x, y, mapState.map[y][x]);
         }
       }
 
-      state.dirtyChunks.clear();
-      for (let cy = 0; cy < state.chunkRows; cy++) {
-        for (let cx = 0; cx < state.chunkCols; cx++) {
-          state.dirtyChunks.add(`${cx},${cy}`);
+      chunkState.dirtyChunks.clear();
+      for (let cy = 0; cy < chunkState.chunkRows; cy++) {
+        for (let cx = 0; cx < chunkState.chunkCols; cx++) {
+          chunkState.dirtyChunks.add(`${cx},${cy}`);
         }
       }
 

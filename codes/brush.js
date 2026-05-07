@@ -1,5 +1,8 @@
-import { state, brushState, chunkSize, cellSize, stackState } from "./state.js";
-import { heightClamp, lerp, applyColumnChanges, markDirty } from "./utils.js";
+import { 
+  sizeState, brushState, mouseState, mapState, chunkSize, cellSize, stackState, cameraState
+} from "./state.js";
+import { heightClamp, lerp } from "./utils.js";
+import { applyColumnChanges, markDirty } from "./chunk.js";
 import { nameToId } from "./nameMap.js";
 
 let currentStroke = null;
@@ -29,7 +32,7 @@ export function endStroke() {
 function recordChange(x, y, before, after, type = "height") {
   const key = `${type}:${x},${y}`;
 
-  if (!strokeMap || !strokeMap.has(key)) {
+  if (!strokeMap || strokeMap === null || !strokeMap.has(key)) {
     strokeMap.set(key, { x, y, before, after, type });
   } else {
     strokeMap.get(key).after = after;
@@ -37,7 +40,7 @@ function recordChange(x, y, before, after, type = "height") {
 }
 
 function normalBrush(cellX, cellY) {
-  const r = state.brushRadius;
+  const r = brushState.brushRadius;
   const changed = new Set();
 
   const brushData =
@@ -52,12 +55,12 @@ function normalBrush(cellX, cellY) {
     for (let dx = -r; dx <= r; dx++) {
       const x = cellX + dx;
       const y = cellY + dy;
-      if (x < 0 || y < 0 || x >= state.widthLength || y >= state.heightLength) continue;
+      if (x < 0 || y < 0 || x >= sizeState.widthLength || y >= sizeState.heightLength) continue;
 
       const distance = Math.hypot(dx, dy);
       if (distance > r) continue;
 
-      const oldH = state.map[y][x];
+      const oldH = mapState.map[y][x];
       const normalized = Math.pow(1 - distance / r, 2);
 
       let strength = normalized;
@@ -70,14 +73,14 @@ function normalBrush(cellX, cellY) {
 
       let newH = oldH;
 
-      if (state.leftDown) {
-        if (state.mode === "flatten" && state.targetHeight !== null) {
-          newH = heightClamp(lerp(oldH, state.targetHeight, 0.08 * strength));
+      if (mouseState.leftDown) {
+        if (brushState.mode === "flatten" && brushState.targetHeight !== null) {
+          newH = heightClamp(lerp(oldH, brushState.targetHeight, 0.08 * strength));
         } else {
           newH = heightClamp(oldH + (r - distance) * 0.03 * strength);
         }
-      } else if (state.rightDown) {
-        if (state.mode !== "flatten") {
+      } else if (mouseState.rightDown) {
+        if (brushState.mode !== "flatten") {
           newH = heightClamp(oldH - (r - distance) * 0.03 * strength);
         }
       }
@@ -89,7 +92,7 @@ function normalBrush(cellX, cellY) {
 
       recordChange(x, y, oldH, newH, "height");
 
-      state.map[y][x] = newH;
+      mapState.map[y][x] = newH;
       changed.add(`${x},${y}`);
       markDirty(x, y);
     }
@@ -99,7 +102,7 @@ function normalBrush(cellX, cellY) {
 }
 
 function smoothBrush(cellX, cellY) {
-  const r = state.brushRadius;
+  const r = brushState.brushRadius;
   const changed = new Set();
 
   for (let dy = -r; dy <= r; dy++) {
@@ -107,27 +110,30 @@ function smoothBrush(cellX, cellY) {
       const x = cellX + dx;
       const y = cellY + dy;
 
-      if (x < 1 || y < 1 || x >= state.widthLength - 1 || y >= state.heightLength - 1) continue;
+      if (x < 1 || y < 1 || x >= sizeState.widthLength - 1 || y >= sizeState.heightLength - 1) continue;
       if (dx * dx + dy * dy > r * r) continue;
 
-      const oldH = state.map[y][x];
+      const oldH = mapState.map[y][x];
 
       const avg =
         (oldH +
-          state.map[y][x - 1] +
-          state.map[y][x + 1] +
-          state.map[y - 1][x] +
-          state.map[y + 1][x]) /
+          mapState.map[y][x - 1] +
+          mapState.map[y][x + 1] +
+          mapState.map[y - 1][x] +
+          mapState.map[y + 1][x]) /
         5;
 
       const strength = 0.5 * (1 - (dx * dx + dy * dy) / (r * r));
       const newH = heightClamp(lerp(oldH, avg, strength));
 
+      if (brushState.atOrAboveEnabled && newH < brushState.orAboveRangeInput) continue;
+      if (brushState.atOrBelowEnabled && newH > brushState.atOrBelowRangeInput) continue;
+
       if (oldH === newH) continue;
 
       recordChange(x, y, oldH, newH, "height");
 
-      state.map[y][x] = newH;
+      mapState.map[y][x] = newH;
       changed.add(`${x},${y}`);
       markDirty(x, y);
     }
@@ -137,11 +143,11 @@ function smoothBrush(cellX, cellY) {
 }
 
 function sprayBrush(cellX, cellY) {
-  const density = state.brushRadius * 3;
+  const density = brushState.brushRadius * 3;
 
   for (let i = 0; i < density; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const radius = Math.sqrt(Math.random()) * state.brushRadius;
+    const radius = Math.sqrt(Math.random()) * brushState.brushRadius;
 
     const dx = Math.round(Math.cos(angle) * radius);
     const dz = Math.round(Math.sin(angle) * radius);
@@ -149,23 +155,26 @@ function sprayBrush(cellX, cellY) {
     const x = cellX + dx;
     const z = cellY + dz;
 
-    if (x < 0 || z < 0 || x >= state.widthLength || z >= state.heightLength) continue;
-    if (!state.leftDown) continue;
+    if (x < 0 || z < 0 || x >= sizeState.widthLength || z >= sizeState.heightLength) continue;
+    if (!mouseState.leftDown) continue;
 
-    const oldBlock = state.topBlockMap[z][x];
-    const newBlock = nameToId[state.selectedBlock];
+    const oldBlock = mapState.topBlockMap[z][x];
+    const newBlock = nameToId[brushState.selectedBlock];
+
+    if (brushState.atOrAboveEnabled && mapState.map[z][x] < brushState.orAboveRangeInput) continue;
+    if (brushState.atOrBelowEnabled && mapState.map[z][x] > brushState.atOrBelowRangeInput) continue;
 
     if (oldBlock === newBlock) continue;
 
     recordChange(x, z, oldBlock, newBlock, "block");
 
-    state.topBlockMap[z][x] = newBlock;
+    mapState.topBlockMap[z][x] = newBlock;
     markDirty(x, z);
   }
 }
 
 function layerBrush(cellX, cellY) {
-  const r = state.brushRadius;
+  const r = brushState.brushRadius;
   const r2 = r * r;
 
   for (let dy = -r; dy <= r; dy++) {
@@ -174,64 +183,40 @@ function layerBrush(cellX, cellY) {
 
       const x = cellX + dx;
       const y = cellY + dy;
-      if (x < 0 || y < 0 || x >= state.widthLength || y >= state.heightLength) continue;
+      if (x < 0 || y < 0 || x >= sizeState.widthLength || y >= sizeState.heightLength) continue;
 
-      const oldLayer = state.layerMap[y][x];
-      const newLayer = state.leftDown ? state.selectedLayer : null;
+      const oldLayer = mapState.layerMap[y][x];
+      const newLayer = mouseState.leftDown ? brushState.selectedLayer : null;
+
+      if (brushState.atOrAboveEnabled && mapState.map[y][x] < brushState.orAboveRangeInput) continue;
+      if (brushState.atOrBelowEnabled && mapState.map[y][x] > brushState.atOrBelowRangeInput) continue;
 
       if (oldLayer === newLayer) continue;
 
       recordChange(x, y, oldLayer, newLayer, "layer");
 
-      state.layerMap[y][x] = newLayer;
-      markDirty(x, y);
-    }
-  }
-}
-
-function noiseBrush(cellX, cellY) {
-  const r = state.brushRadius;
-
-  for (let dy = -r; dy <= r; dy++) {
-    for (let dx = -r; dx <= r; dx++) {
-      const x = cellX + dx;
-      const y = cellY + dy;
-
-      if (x < 0 || y < 0 || x >= state.widthLength || y >= state.heightLength) continue;
-      if (dx*dx + dy*dy > r*r) continue;
-
-      const oldH = state.map[y][x];
-
-      const raw = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
-      const n = (raw - Math.floor(raw)) * 2 - 1; // -1〜1
-
-      const falloff = 1 - (dx*dx + dy*dy)/(r*r);
-      const strength = 0.2 * falloff;
-
-      const newH = heightClamp(oldH + n * strength * 1.1);
-
-      state.map[y][x] = newH;
+      mapState.layerMap[y][x] = newLayer;
       markDirty(x, y);
     }
   }
 }
 
 export function applyBrush() {
-  const size = cellSize * state.zoom;
-  const cellX = Math.floor((state.mouseX - state.camX) / size);
-  const cellY = Math.floor((state.mouseY - state.camY) / size);
+  const size = cellSize * cameraState.zoom;
+  const cellX = Math.floor((mouseState.mouseX - cameraState.camX) / size);
+  const cellY = Math.floor((mouseState.mouseY - cameraState.camY) / size);
 
   if (
     cellX < 0 ||
     cellY < 0 ||
-    cellX >= state.widthLength ||
-    cellY >= state.heightLength
+    cellX >= sizeState.widthLength ||
+    cellY >= sizeState.heightLength
   )
     return;
 
-  if (!state.leftDown && !state.rightDown) return;
+  if (!mouseState.leftDown && !mouseState.rightDown) return;
 
-  switch (state.mode) {
+  switch (brushState.mode) {
     case "smooth":
       smoothBrush(cellX, cellY);
       break;
@@ -240,9 +225,6 @@ export function applyBrush() {
       break;
     case "layerPaint":
       layerBrush(cellX, cellY);
-      break;
-    case "noise":
-      noiseBrush(cellX, cellY);
       break;
     default:
       normalBrush(cellX, cellY);

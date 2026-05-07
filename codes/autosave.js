@@ -1,6 +1,7 @@
-import { state } from "./state.js";
+import { sizeState, mapState } from "./state.js";
 import { downloadJSON, importJSON } from "./parser.js";
-import { redrawAllChunks } from "./utils.js";
+import { showPopup } from "./utils.js";
+import { redrawAllChunks } from "./chunk.js";
 let db;
 
 const fileInput = document.createElement("input");
@@ -15,13 +16,8 @@ fileInput.onchange = (e) => {
   if (file) importJSON(file);
 };
 
-function openLoadDialog() {
-  fileInput.click();
-}
-
 openFile.addEventListener("click", () => {
-  document.getElementById("stateInput").click();
-  openLoadDialog();
+  fileInput.click();
 });
 
 saveFile.addEventListener("click", (e) => {
@@ -41,6 +37,7 @@ document.addEventListener("keydown", (e) => {
     if (e.shiftKey) {
       downloadJSON(); // Ctrl+Shift+S → ファイル保存
     } else {
+      showPopup("quick saved!", 2000);
       quickSave(); // Ctrl+S → IndexedDB
     }
   }
@@ -100,9 +97,9 @@ export function loadFromDB() {
 
 export async function quickSave() {
   const data = {
-    map: state.map,
-    topBlockMap: state.topBlockMap,
-    layerMap: state.layerMap
+    map: mapState.map,
+    topBlockMap: mapState.topBlockMap,
+    layerMap: mapState.layerMap
   };
 
   await saveToDB(data);

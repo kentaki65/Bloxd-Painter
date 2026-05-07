@@ -1,6 +1,5 @@
 import {
-  state,
-  brushState,
+  sizeState, brushState, mouseState, chunkState, mapState, cameraState,
   cellSize,
   blockColors,
   mapInit,
@@ -11,7 +10,8 @@ import {
 } from "./state.js";
 
 import { writeBloxdSchem, downloadSchems, convertChunks, growForest, loadSchem, loadSchemAsWorld, applyParsed} from "./parser.js";
-import { resizeMap, resizeHeight, hideLoading, showLoading, redrawAllChunks, undo, redo, applyColumnChanges} from "./utils.js";
+import { hideLoading, showLoading, undo, redo } from "./utils.js";
+import { resizeHeight, resizeMap, redrawAllChunks, applyColumnChanges } from "./chunk.js";
 import { quickSave } from "./autosave.js";
 
 const brushImages = [
@@ -87,6 +87,9 @@ const optionTab = document.getElementById("optionstab");
 const brushContent = document.getElementById("brushContent");
 const optionsContent = document.getElementById("optionsContent");
 
+const aboveEnabled = document.getElementById("atOrAboveEnabled");
+const belowEnabled = document.getElementById("atOrBelowEnabled");
+
 const tabs = [layerTab, terrainTab, advancedTab];
 const contents = [layerContent, terrainContent, advancedSetting];
 
@@ -98,13 +101,13 @@ const toolName2 = document.getElementById("toolName2");
 
 function changeMode(e) {
   const name = e.currentTarget.id;
-  state.mode = name;
+  brushState.mode = name;
   modeBar.textContent = `Mode: ${name}`;
 }
 
 function changeSelectLayer(e) {
   const name = e.currentTarget.id;
-  state.selectedLayer = name;
+  brushState.selectedLayer = name;
   layerBar.textContent = `Layer: ${name}`;
 }
 
@@ -177,33 +180,33 @@ async function loadAllBrushes(brushImages) {
 }
 
 function applyWaterLevel(){
-  const width = state.widthLength;
-  const height = state.heightLength;
-  const maxH = state.maxHeight;
+  const width = sizeState.widthLength;
+  const height = sizeState.heightLength;
+  const maxH = sizeState.maxHeight;
 
   const waterId = 126;
-  const waterLevel = state.waterLevel;
+  const waterLevel = mapState.waterLevel;
 
   for(let z = 0; z < height; z++){
     for(let x = 0; x < width; x++){
       for(let y = 0; y < maxH; y++){
-        if(state.blockMap[y][z][x] === waterId){
-          state.blockMap[y][z][x] = 0;
+        if(mapState.blockMap[y][z][x] === waterId){
+          mapState.blockMap[y][z][x] = 0;
         }
       }
       for(let y = 0; y <= waterLevel; y++){
         if(y >= maxH) break;
 
-        if(state.blockMap[y][z][x] === 0){
-          state.blockMap[y][z][x] = waterId;
+        if(mapState.blockMap[y][z][x] === 0){
+          mapState.blockMap[y][z][x] = waterId;
         }
       }
     }
   }
 
-  for(let cy = 0; cy < state.chunkRows; cy++){
-    for(let cx = 0; cx < state.chunkCols; cx++){
-      state.dirtyChunks.add(`${cx},${cy}`);
+  for(let cy = 0; cy < chunkState.chunkRows; cy++){
+    for(let cx = 0; cx < chunkState.chunkCols; cx++){
+      chunkState.dirtyChunks.add(`${cx},${cy}`);
     }
   }
 }
@@ -232,75 +235,75 @@ export function eventInit() {
   canvas.addEventListener("mousedown", (e) => {
     if (e.button === 0) {
       //setTimeout(saveHistory, 0);
-      state.leftDown = true;
-      if (state.mode === "flatten") {
-        const size = cellSize * state.zoom;
-        const cellX = Math.floor((e.offsetX - state.camX) / size);
-        const cellY = Math.floor((e.offsetY - state.camY) / size);
-        state.targetHeight = state.map[cellY][cellX];
+      mouseState.leftDown = true;
+      if (brushState.mode === "flatten") {
+        const size = cellSize * cameraState.zoom;
+        const cellX = Math.floor((e.offsetX - cameraState.camX) / size);
+        const cellY = Math.floor((e.offsetY - cameraState.camY) / size);
+        brushState.targetHeight = mapState.map[cellY][cellX];
       }
     }
     if (e.button === 1) {
-      state.panning = true;
-      state.panStartX = e.clientX;
-      state.panStartY = e.clientY;
+      cameraState.panning = true;
+      cameraState.panStartX = e.clientX;
+      cameraState.panStartY = e.clientY;
     }
-    if (e.button === 2) state.rightDown = true;
+    if (e.button === 2) mouseState.rightDown = true;
   });
 
   window.addEventListener("mouseup", (e) => {
     if (e.button === 0) {
-      if (state.mode === "flatten") state.targetHeight = null;
-      state.leftDown = false;
+      if (brushState.mode === "flatten") brushState.targetHeight = null;
+      mouseState.leftDown = false;
     }
-    if (e.button === 1) state.panning = false;
-    if (e.button === 2) state.rightDown = false;
+    if (e.button === 1) cameraState.panning = false;
+    if (e.button === 2) mouseState.rightDown = false;
   });
 
   window.addEventListener("wheel", (e) => {
     if (e.shiftKey) {
-      state.zoom += e.deltaY > 0 ? -0.1 : 0.1;
-      state.zoom = Math.max(0.05, Math.min(4, state.zoom));
-      zoomSizeBar.textContent = `Zoom: ${state.zoom.toFixed(2)}`;
+      cameraState.zoom += e.deltaY > 0 ? -0.1 : 0.1;
+      cameraState.zoom = Math.max(0.05, Math.min(4, cameraState.zoom));
+      zoomSizeBar.textContent = `Zoom: ${cameraState.zoom.toFixed(2)}`;
       return;
     }
 
-    state.brushRadius += e.deltaY > 0 ? -2 : 2;
-    state.brushRadius = Math.max(1, Math.min(300, state.brushRadius));
-    brushSizeBar.textContent = `Size: ${state.brushRadius}`;
+    brushState.brushRadius += e.deltaY > 0 ? -2 : 2;
+    brushState.brushRadius = Math.max(1, Math.min(300, brushState.brushRadius));
+    brushSizeBar.textContent = `Size: ${brushState.brushRadius}`;
   });
 
   canvas.addEventListener("mousemove", (e) => {
     // 先にマウス座標更新
-    state.mouseX = e.offsetX;
-    state.mouseY = e.offsetY;
+    mouseState.mouseX = e.offsetX;
+    mouseState.mouseY = e.offsetY;
 
-    const size = cellSize * state.zoom;
-    const cellX = Math.floor((state.mouseX - state.camX) / size);
-    const cellY = Math.floor((state.mouseY - state.camY) / size);
+    const size = cellSize * cameraState.zoom;
+    const cellX = Math.floor((mouseState.mouseX - cameraState.camX) / size);
+    const cellY = Math.floor((mouseState.mouseY - cameraState.camY) / size);
 
     // 範囲チェック（絶対戻す）
     if (
       cellX >= 0 &&
       cellY >= 0 &&
-      cellX < state.widthLength &&
-      cellY < state.heightLength
+      cellX < sizeState.widthLength &&
+      cellY < sizeState.heightLength
     ) {
       locationBar.textContent = `Location: ${cellX}, ${cellY}`;
-      heightBar.textContent = `Height: ${Math.floor(state.map[cellY][cellX])}/${state.maxHeight}`;
+      heightBar.textContent = `Height: ${Math.floor(mapState.map[cellY][cellX])}/${sizeState.maxHeight}`;
     }
 
     // パン処理
-    if (!state.panning) return;
+    if (!cameraState.panning) return;
 
-    const dx = e.clientX - state.panStartX;
-    const dy = e.clientY - state.panStartY;
+    const dx = e.clientX - cameraState.panStartX;
+    const dy = e.clientY - cameraState.panStartY;
 
-    state.camX += dx;
-    state.camY += dy;
+    cameraState.camX += dx;
+    cameraState.camY += dy;
 
-    state.panStartX = e.clientX;
-    state.panStartY = e.clientY;
+    cameraState.panStartX = e.clientX;
+    cameraState.panStartY = e.clientY;
   });
 
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -343,22 +346,22 @@ export function eventInit() {
   Object.keys(blockColors).forEach(name => {
     const element = document.getElementById("block" + name[0].toUpperCase() + name.slice(1));
     if (element) element.addEventListener("click", () => {
-      state.selectedBlock = name;
+      brushState.selectedBlock = name;
       selectBlockBar.textContent = `Block: ${name}`;
     });
   });
 
   newFileInput.addEventListener("click", (e) => {
-    state.map = mapInit();
-    state.blockMap = blockMapInit();
-    state.layerMap = layerMapInit();
-    state.topBlockMap = topBlockMap();
+    mapState.map = mapInit();
+    mapState.blockMap = blockMapInit();
+    mapState.layerMap = layerMapInit();
+    mapState.topBlockMap = topBlockMap();
     redrawAllChunks();
   });
 
   exportInput.addEventListener("click", async () => {
-    growForest(state, treesStructures.pine, 6); 
-    const json = convertChunks(state);
+    growForest(treesStructures.pine, 6); 
+    const json = convertChunks();
     const result = writeBloxdSchem(json);
     await downloadSchems(result);
   });
@@ -379,29 +382,37 @@ export function eventInit() {
   });
   
   fileNameInput.addEventListener("input", (e) => {
-    state.fileName = e.target.value;
-    console.log("fileName:", paletteSettings.fileName);
+    mapState.fileName = e.target.value;
+    console.log("fileName:", mapState.fileName);
   });
 
   paletteSizeInput.addEventListener("input", async (e) => {
     const newSize = parseInt(e.target.value) || 8;
     await resizeMap(newSize, newSize);
-    console.log("palette resized:", newSize, "width:", state.widthLength, "height:", state.heightLength);
+    console.log("palette resized:", newSize, "width:", sizeState.widthLength, "height:", sizeState.heightLength);
   });
   
   maxHeightInput.addEventListener("input", async (e) => {
     const value = parseInt(e.target.value) || 64;
-    state.maxHeight = value;
+    sizeState.maxHeight = value;
     await resizeHeight(value);
-    console.log("maxHeight:", state.maxHeight);
+    console.log("maxHeight:", sizeState.maxHeight);
   });
 
   waterLevelInput.addEventListener("input", (e)=>{
     const value = parseInt(e.target.value) || 0;
-    state.waterLevel = value;
+    mapState.waterLevel = value;
     applyWaterLevel();
-    console.log("maxHeight:", state.waterLevel);
+    console.log("maxHeight:", mapState.waterLevel);
   })
+
+  aboveEnabled.addEventListener("change", e => {
+    brushState.atOrAboveEnabled = e.target.checked;
+  });
+
+  belowEnabled.addEventListener("change", e => {
+    brushState.atOrBelowEnabled = e.target.checked;
+  });
 
   Object.keys(brushState).forEach(id => {
     const element = document.getElementById(id);
@@ -424,77 +435,6 @@ export function eventInit() {
     });
   });
   loadAllBrushes(brushImages);
-
-  open3dView.addEventListener("click", (e) => {
-    const win = window.open("", "_blank", "width=800,height=600");
-    win.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>body{margin:0;overflow:hidden;}</style>
-    </head>
-    <body>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-    <script>
-    const scene = new THREE.Scene();
-
-    const renderer = new THREE.WebGLRenderer();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
-
-    const map = ${JSON.stringify(state.map)};
-    const blockMap = ${JSON.stringify(state.blockMap)};
-
-    const sizeX = map[0].length;
-    const sizeZ = map.length;
-
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
-
-    const centerX = sizeX / 2;
-    const centerZ = sizeZ / 2;
-    const maxH = ${state.maxHeight};
-
-    const dist = Math.max(sizeX, sizeZ) * 1.5;
-    camera.position.set(centerX, maxH + dist, centerZ + dist);
-    camera.lookAt(centerX, 0, centerZ);
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-    const light = new THREE.DirectionalLight(0xffffff, 0.8);
-    light.position.set(50,100,50);
-    scene.add(light);
-
-    const geometry = new THREE.BoxGeometry(1,1,1);
-
-    function getColor(id){
-      switch(id){
-        case 1: return 0x00aa00;
-        case 2: return 0x8B4513;
-        case 3: return 0x888888;
-        default: return 0xffffff;
-      }
-    }
-
-    for(let z=0; z<map.length; z++){
-      for(let x=0; x<map[0].length; x++){
-        const h = Math.floor(map[z][x]);
-
-        let id = blockMap[h]?.[z]?.[x] ?? 0;
-        if(id === 0) id = 1;
-
-        const material = new THREE.MeshLambertMaterial({ color: getColor(id) });
-        const cube = new THREE.Mesh(geometry, material);
-
-        cube.position.set(x, h, z);
-        scene.add(cube);
-      }
-    }
-
-    renderer.render(scene, camera);
-    </script>
-    </body>
-    </html>
-    `);
-  })
 
   document.addEventListener("keydown", async (e) => {
     const tag = document.activeElement.tagName;

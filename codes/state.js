@@ -51,54 +51,51 @@ export const treesStructures = {
   ]
 }
 
-export const state = {
-  // サイズ系
+export const sizeState = { //size.
   chunkLenX: 4,
   chunkLenZ: 4,
   maxHeight: 64,
+  get widthLength() { return this.chunkLenX * chunkSize; },
+  get heightLength() { return this.chunkLenZ * chunkSize; }
+}
 
-  //マップ
+export const mapState = {
   map: null,
   blockMap: null,
   layerMap: null,
   topBlockMap: null,
   fileName: "schem",
   waterLevel: 0,
+}
 
-  // 編集系
+export const mouseState = {
   leftDown: false,
   rightDown: false,
-  brushRadius: 3,
   mouseX: 0,
   mouseY: 0,
+}
+
+export const cameraState = {
   camX: 0,
   camY: 0,
   zoom: 1,
   panning: false,
   panStartX: 0,
   panStartY: 0,
+}
+
+export const brushState = {
+  brushRadius: 3,
   mode: "height",
   targetHeight: null,
   selectedBlock: "Grass Block",
   selectedLayer: "layerPineForest",
 
-  chunkCols: 0,
-  chunkRows: 0,
-  chunkCanvas: null,
-  dirtyChunks: new Set(),
-
-  get widthLength() { return this.chunkLenX * chunkSize; },
-  get heightLength() { return this.chunkLenZ * chunkSize; }
-};
-
-export const brushState = {
   atOrAboveEnabled: false,      // チェックボックスは初期オフ
   orAboveRangeInput: 0,         // number input 初期値 0
   atOrBelowEnabled: false,      // チェックボックスは初期オフ
   atOrBelowRangeInput: 0,       // number input 初期値 0
-  onlyBlockEnabled: false,      // チェックボックスは初期オフ
-  onlyBlockInput: "Dirt",       // テキスト入力の初期値
-
+  
   brushType: "default",
   loadedBrushes: null,
   blockLayers: [
@@ -106,6 +103,13 @@ export const brushState = {
     { depth: 3, block: 2 }, // 土
     { depth: Infinity, block: 28 } // 石
   ]
+};
+ 
+export const chunkState = {
+  chunkCols: 0,
+  chunkRows: 0,
+  chunkCanvas: null,
+  dirtyChunks: new Set(),
 };
 
 export const stackState = {
@@ -115,48 +119,48 @@ export const stackState = {
 };
 
 export function initChunks(){
-  state.chunkCols = Math.ceil(state.widthLength / chunkSize);
-  state.chunkRows = Math.ceil(state.heightLength / chunkSize);
+  chunkState.chunkCols = Math.ceil(sizeState.widthLength / chunkSize);
+  chunkState.chunkRows = Math.ceil(sizeState.heightLength / chunkSize);
 
-  state.chunkCanvas = Array.from({ length: state.chunkRows }, () =>
-    Array.from({ length: state.chunkCols }, () => null)
+  chunkState.chunkCanvas = Array.from({ length: chunkState.chunkRows }, () =>
+    Array.from({ length: chunkState.chunkCols }, () => null)
   );
 
-  state.dirtyChunks.clear();
+  chunkState.dirtyChunks.clear();
 
-  for(let cy = 0; cy < state.chunkRows; cy++){
-    for(let cx = 0; cx < state.chunkCols; cx++){
-      state.dirtyChunks.add(`${cx},${cy}`);
+  for(let cy = 0; cy < chunkState.chunkRows; cy++){
+    for(let cx = 0; cx < chunkState.chunkCols; cx++){
+      chunkState.dirtyChunks.add(`${cx},${cy}`);
     }
   }
 }
 
 export const mapInit = () =>
-  Array.from({ length: state.heightLength }, () =>
-    new Array(state.widthLength).fill(0)
+  Array.from({ length: sizeState.heightLength }, () =>
+    new Array(sizeState.widthLength).fill(0)
   );
 
 export const blockMapInit = () =>
-  Array.from({ length: state.maxHeight }, () =>
-    Array.from({ length: state.heightLength }, () =>
-      new Array(state.widthLength).fill(0)
+  Array.from({ length: sizeState.maxHeight }, () =>
+    Array.from({ length: sizeState.heightLength }, () =>
+      new Array(sizeState.widthLength).fill(0)
     )
   );
 
 export const layerMapInit = () =>
-  Array.from({ length: state.heightLength }, () =>
-    new Array(state.widthLength).fill(null)
+  Array.from({ length: sizeState.heightLength }, () =>
+    new Array(sizeState.widthLength).fill(null)
   );
 
 export const topBlockMap = () => 
-  Array.from({ length: state.heightLength }, () =>
-    new Array(state.widthLength).fill(null)
+  Array.from({ length: sizeState.heightLength }, () =>
+    new Array(sizeState.widthLength).fill(null)
   );
 
 
 export function initMaps() {
-  state.map = mapInit();
-  state.blockMap = blockMapInit();
-  state.layerMap = layerMapInit();
-  state.topBlockMap = topBlockMap();
+  mapState.map = mapInit();
+  mapState.blockMap = blockMapInit();
+  mapState.layerMap = layerMapInit();
+  mapState.topBlockMap = topBlockMap();
 }
