@@ -1,0 +1,1 @@
+declare module "https://esm.sh/avsc@5.7.9";
