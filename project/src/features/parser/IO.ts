@@ -3,6 +3,7 @@ import { chunkSize } from "../../core/constants.js";
 import { resizeMap, resizeHeight, rebuildColumn } from "../chunk/index.js";
 import { parse } from "./decode.js";
 import { WrittenSchems, ImportedJsonData, ParsedResult } from "../../core/types.js";
+import { Buffer } from "https://esm.sh/buffer";
 
 export async function downloadSchems(result: WrittenSchems): Promise<void> {
   const baseName = mapState.fileName || "schem";

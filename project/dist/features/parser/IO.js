@@ -2,6 +2,7 @@ import { mapState, sizeState, chunkState } from "../../states/index.js";
 import { chunkSize } from "../../core/constants.js";
 import { resizeMap, resizeHeight, rebuildColumn } from "../chunk/index.js";
 import { parse } from "./decode.js";
+import { Buffer } from "https://esm.sh/buffer";
 export async function downloadSchems(result) {
     const baseName = mapState.fileName || "schem";
     if (result.schems.length === 1) {
