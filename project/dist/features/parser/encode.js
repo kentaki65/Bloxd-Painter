@@ -1,6 +1,5 @@
 import { schema0 } from "./schema.js";
 import { Buffer } from "https://esm.sh/buffer";
-globalThis.Buffer = Buffer;
 function encodeLEB128(value) {
     const bytes = [];
     while ((value & -128) != 0) {

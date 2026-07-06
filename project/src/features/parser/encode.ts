@@ -2,7 +2,6 @@ import { schema0 } from "./schema.js";
 import { Buffer } from "https://esm.sh/buffer";
 
 import type { RawSchemInput, EncodedSchemJson, EncodedChunk, SplitResult, WrittenSchems } from "../../core/types.js";
-(globalThis as typeof globalThis & { Buffer: typeof Buffer }).Buffer = Buffer;
 
 function encodeLEB128(value: number): number[] {
   const bytes: number[] = [];
