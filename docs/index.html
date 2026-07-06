@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script type="module" src="./dist/main.js"></script>
+
+  <link rel="stylesheet" href="./css/styles.css">
+  <link rel="stylesheet" href="./css/dropdown.css">
+  <link rel="stylesheet" href="./css/underbar.css">
+  <link rel="stylesheet" href="./css/settings.css">
+  <link rel="stylesheet" href="./css/tools.css">
+  <link rel="stylesheet" href="./css/loading.css">
+  <link rel="stylesheet" href="./css/popup.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <title>Bloxd Painter</title>
+</head>
+<body>
+  <div id="loadingOverlay">
+    <div id="loadingText">processing...</div>
+  </div>
+  <div class="popup" id="sevedLog">
+    <span id="replacedText"></span>
+  </div>
+  <div class="screen">
+    <div class="dropdown">
+      <div class="option">
+        <div class="nameLabel">file</div>
+        <div class="dropdownMenu">
+          <button type="button" class="dropdownButton" id="newFile">new palette</button>
+
+          <button type="button" class="attached" id="openFile">open json</button>
+          <input type="file" class="hidden" id="stateInput" accept=".json" />
+
+          <button type="button" class="attached" id="saveFile">save json</button>
+
+          <button type="button" class="attached" id="exportFile">export file</button>
+
+          <button type="button" class="attached" id="importInput">import schematic</button>
+          <input type="file" class="hidden" id="schemInput" accept=".bloxdschem" />         
+        </div>
+      </div>
+      <div class="option">
+        <div class="nameLabel">edit</div>
+        <div class="dropdownMenu">
+          <button type="button" class="dropdownButton">foo</button>
+          <button type="button" class="dropdownButton">foo</button>
+        </div>
+      </div>
+      <div class="option">
+        <div class="nameLabel">view</div>
+        <div class="dropdownMenu">
+          <button type="button" class="dropdownButton" id="open3dview">3d viewer</button>
+          <button type="button" class="dropdownButton">foo</button>
+        </div>
+      </div>
+    </div>
+    <div class="viewer">
+      <div class="toolsColumn">
+        <div class="labels">tools</div>
+        <div class="toolsUi">
+          <button class="Button" title="spray paint: spray paint any terrain. layer or biome onto the world" id="sprayPaint">
+            <i class="fa-solid fa-spray-can"></i>
+          </button>
+          <button class="Button" title="height: raise or lower the terrain" id="height">
+            <div class="buttonStr">⇅</div>
+          </button>
+          <button class="Button" title="flatten: flatten an area" id="flatten">
+            <div class="buttonStr">⤳</div>
+          </button>
+          <button class="Button" title="smooth: smooth the terrain out" id="smooth">
+            <div class="buttonStr">⤵</div>
+          </button>
+          <!-- 
+          sorry! I haven't finished completing it yet!
+          <button class="Button" id="layerPaint">
+            <i class="fa-solid fa-layer-group"></i>
+          </button> 
+          -->
+        </div>
+        <div class="toolBox">
+          <div class="toolTabs">
+            <!--
+            <div class="tab">
+              <button type="button" id="layertab">Layers</button>
+            </div>
+            -->
+            <div class="tab">
+              <button type="button" id="terraintab">Terrain</button>
+            </div>
+            <div class="tab">
+              <button type="button" id="advancedtab">Advanced Setting</button>
+            </div>
+          </div>
+          <div class="toolColumn">
+            <div class="toolName" id="toolName">Terrain</div>
+            <!--
+            <div class="columnWrap" id="layerContent">
+              <div class="toolContent">
+                <div class="toolTypes">
+                  <button type="button">Forest</button>
+                </div>
+              </div>
+            </div> 
+            -->
+            <div class="columnWrap" id="terrainContent">
+              <div class="toolContent">
+                <div class="toolTypes">
+                  <div class="blocksUI">
+                    <button class="BlockButton" title="dirt" id="blockDirt">
+                      <img src="assets/blocksIcon/Dirt.webp" width="24">
+                    </button>
+                    <button class="BlockButton" title="grass" id="blockGrass Block">
+                      <img src="assets/blocksIcon/Grass_Block.webp" width="24">
+                    </button>
+                    <button class="BlockButton" title="sand" id="blockSand">
+                      <img src="assets/blocksIcon/sand.webp" width="24">
+                    </button>
+                    <button class="BlockButton" title="stone" id="blockStone">
+                      <img src="assets/blocksIcon/Stone.webp" width="24">
+                    </button>
+                    <button class="BlockButton" title="messyStone" id="blockMessyStone">
+                      <img src="assets/blocksIcon/Messy_Stone.webp" width="24">
+                    </button>
+                    <button class="BlockButton" title="gravel" id="blockGravel">
+                      <img src="assets/blocksIcon/Gravel.webp" width="24">
+                    </button>
+                    <button class="BlockButton" title="clay" id="blockClay">
+                      <img src="assets/blocksIcon/Clay.webp" width="24">
+                    </button>
+                    <button class="BlockButton" title="andesite" id="blockAndesite">
+                      <img src="assets/blocksIcon/Andesite.webp" width="24">
+                    </button>
+                    <button class="BlockButton" title="diorite" id="blockDiorite">
+                      <img src="assets/blocksIcon/Diorite.webp" width="24">
+                    </button>
+                    <button class="BlockButton" title="granite" id="blockGranite">
+                      <img src="assets/blocksIcon/Granite.webp" width="24">
+                    </button>
+                    <button class="BlockButton" title="snow" id="blockSnow">
+                      <img src="assets/blocksIcon/Snow.png" width="24">
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="columnWrap hidden" id="advancedContent">
+              <div class="toolContent">
+                <div class="toolTypes">
+                  <div class="sliders">
+                    <div class="field">
+                      <label for="volume">File name</label>
+                      <input type="text" id="volume" placeholder="File name" />
+                    </div>
+
+                    <div class="field">
+                      <label for="paletteSize">Palette size</label>
+                      <input type="number" id="paletteSize" value="4" min="1" max="24">
+                    </div>
+
+                    <div class="field">
+                      <label for="maxHeight">Max height</label>
+                      <input type="number" id="maxHeight" value="64" min="32" max="128">
+                    </div>
+
+                    <div class="field">
+                      <label for="waterLevelHeight">Water level</label>
+                      <input type="number" id="waterLevelHeight" value="0" min="0">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <canvas id="canvas"></canvas>
+      <div class="toolsColumn-right">
+        <div class="toolBox">
+          <div class="toolTabs">
+            <div class="tab">
+              <button type="button" id="brushestab">Brushes</button>
+            </div>
+            <div class="tab">
+              <button type="button" id="optionstab">Options</button>
+            </div>
+          </div>
+          <div class="toolColumn">
+            <div class="toolName2" id="toolName2">Brushes</div>
+            <div class="columnWrap" id="brushContent">
+              <div class="toolContent" id="brushUI">
+
+              </div>
+            </div>
+            <div class="columnWrap hidden" id="optionsContent">
+              <div class="toolContent">
+                <div class="settingWrapper">
+                  <div class="setting-group">
+                    <label>
+                      <input type="checkbox" id="atOrAboveEnabled">
+                      at or above:
+                    </label>
+                    <input type="number" id="orAboveRangeInput" min="0" max="255" value="0">
+                  </div>
+
+                  <div class="setting-group">
+                    <label>
+                      <input type="checkbox" id="atOrBelowEnabled">
+                      at or below:
+                    </label>
+                    <input type="number" id="atOrBelowRangeInput" min="0" max="255" value="0">
+                  </div>
+                </div>
+              </div>
+            </div>
+        </div>
+      </div>
+    <div class="underbar" id="underbar">
+      <div class="child" id="location">Location: 0, 0, grass</div>
+      <div class="child" id="heightchild">Height: 0</div>
+      <div class="child" id="brushSize">Size: 3</div>
+      <div class="child" id="zoom">Zoom: </div>
+      <div class="child" id="mode">Mode: height</div>
+      <div class="child" id="layer">Layer: none</div>
+      <div class="child" id="brushType">Brush: default</div>
+      <div class="child" id="selectBlock">Block: stone</div>
+    </div>
+  </div>
+</body>
+</html>
