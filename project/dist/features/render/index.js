@@ -1,4 +1,4 @@
-import { sizeState, chunkState, mapState, brushState, cameraState, mouseState } from "../../states/index.js";
+import { sizeState, chunkState, mapState, brushState, cameraState, mouseState, getBlock, tryGetTopBlock } from "../../states/index.js";
 import { cellSize, contour, blockColors, layerColors, DEFAULT_COLOR, chunkSize, idToName } from "../../core/constants.js";
 const colorCache = new Map();
 function drawBrushPreview(canvas) {
@@ -68,11 +68,8 @@ export function renderChunk(cx, cy) {
         for (let x = startX; x < endX; x++) {
             const h = row[x] ?? 0;
             const topY = Math.min(sizeState.maxHeight - 1, Math.max(0, Math.floor(row[x] ?? 0)));
-            const topRow = mapState.topBlockMap[y];
-            const blockLayer = mapState.blockMap[topY];
-            const topValue = topRow?.[x];
-            const blockLayerRow = blockLayer?.[y];
-            const layerValue = blockLayerRow?.[x];
+            const topValue = tryGetTopBlock(y, x);
+            const layerValue = getBlock(topY, y, x);
             const blockId = topValue != null
                 ? topValue
                 : layerValue != null

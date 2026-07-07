@@ -1,7 +1,7 @@
 import { heightClamp, lerp } from "../../core/utils.js";
-import { sizeState, brushState, mouseState, mapState, cameraState } from "../../states/index.js";
+import { sizeState, brushState, mouseState, mapState, cameraState, getTopBlock, getHeight, setTopBlock, setHeight, tryGetHeight, getLayer, setLayer } from "../../states/index.js";
 import { cellSize, nameToId } from "../../core/constants.js";
-import { applyColumnChanges, markDirty } from "../chunk/index.js";
+import { applyColumnChanges, markDirty, rebuildColumn } from "../chunk/index.js";
 import { recordChange } from "../history/index.js";
 
 function normalBrush(cellX: number, cellY: number) {
@@ -27,10 +27,7 @@ function normalBrush(cellX: number, cellY: number) {
       const distance = Math.hypot(dx, dy);
       if (distance > r) continue;
 
-      let rows = mapState.map[y];
-      if(!rows) continue;
-
-      const oldH = rows[x];
+      const oldH = getHeight(y, x);
       if(oldH === undefined) continue;
 
       const normalized = Math.pow(1 - distance / r, 2);
@@ -63,11 +60,8 @@ function normalBrush(cellX: number, cellY: number) {
       if (oldH === newH) continue;
 
       recordChange(x, y, oldH, newH, "height");
+      setHeight(y, x, newH);
 
-      rows = mapState.map[y];
-      if(!rows) continue;
-
-      rows[x] = newH;
       changed.add(`${x},${y}`);
       markDirty(x, y);
     }
@@ -90,21 +84,13 @@ function smoothBrush(cellX: number, cellY: number) {
       if (x < 1 || y < 1 || x >= sizeState.widthLength - 1 || y >= sizeState.heightLength - 1) continue;
       if (dx * dx + dy * dy > r * r) continue;
 
-      let rows = mapState.map[y];
-      if (!rows) continue;
-
-      const oldH = rows[x];
+      const oldH = getHeight(y, x);
       if (oldH === undefined) continue;
 
-      const leftRow = rows;
-      const rightRow = rows;
-      const upRow = mapState.map[y - 1];
-      const downRow = mapState.map[y + 1];
-
-      const left = leftRow[x - 1] ?? oldH;
-      const right = rightRow[x + 1] ?? oldH;
-      const up = upRow?.[x] ?? oldH;
-      const down = downRow?.[x] ?? oldH;
+      const left = tryGetHeight(y, x - 1) ?? oldH;
+      const right = tryGetHeight(y, x + 1) ?? oldH;
+      const up = tryGetHeight(y - 1, x) ?? oldH;
+      const down = tryGetHeight(y + 1, x) ?? oldH;
 
       const avg = (oldH + left + right + up + down) / 5;
 
@@ -115,13 +101,10 @@ function smoothBrush(cellX: number, cellY: number) {
       if (brushState.rangeFilter.below.enabled && newH > brushState.rangeFilter.above.input) continue;
 
       if (oldH === newH) continue;
-
+      
       recordChange(x, y, oldH, newH, "height");
+      setHeight(y, x, newH);
 
-      rows = mapState.map[y];
-      if(!rows) continue;
-
-      rows[x] = newH;
       changed.add(`${x},${y}`);
       markDirty(x, y);
     }
@@ -148,18 +131,13 @@ function sprayBrush(cellX: number, cellY: number) {
     if (x < 0 || z < 0 || x >= sizeState.widthLength || z >= sizeState.heightLength) continue;
     if (!mouseState.leftDown) continue;
 
-    let topBlockRows = mapState.topBlockMap[z];
-    if(!topBlockRows) continue;
-
-    const oldBlock = topBlockRows[x];
-    if(!oldBlock) continue;
+    const oldBlock = getTopBlock(z, x);
+    if (oldBlock === undefined) continue;
 
     const newBlock = nameToId[brushState.selectedBlock];
-    const mapRows = mapState.map[z];
-    if(!mapRows) continue;
 
-    const h = mapRows[x];
-    if(!h) continue;
+    const h = getHeight(z, x);
+    if (h === undefined) continue;
 
     if (brushState.rangeFilter.above.enabled && h < brushState.rangeFilter.above.input) continue;
     if (brushState.rangeFilter.below.enabled && h > brushState.rangeFilter.below.input) continue;
@@ -167,11 +145,8 @@ function sprayBrush(cellX: number, cellY: number) {
     if (oldBlock === newBlock) continue;
 
     recordChange(x, z, oldBlock, newBlock, "block");
-
-    topBlockRows = mapState.topBlockMap[z];
-    if(!topBlockRows) continue;
-
-    topBlockRows[x] = newBlock;
+    setTopBlock(z, x, newBlock);
+    rebuildColumn(x, z, h); // ← 追加
     markDirty(x, z);
   }
 }
@@ -190,19 +165,13 @@ function layerBrush(cellX: number, cellY: number) {
       const y = cellY + dy;
       if (x < 0 || y < 0 || x >= sizeState.widthLength || y >= sizeState.heightLength) continue;
 
-      let layerRows = mapState.layerMap[y];
-      if(!layerRows) continue;
-
-      const oldLayer = layerRows[x];
+      const oldLayer = getLayer(y, x);
       if(!oldLayer) continue;
       
       const newLayer = mouseState.leftDown ? brushState.selectedLayer : null;
       if(!newLayer) continue;
 
-      const mapRows = mapState.map[y];
-      if (!mapRows) continue;
-
-      const h = mapRows[x];
+      const h = getHeight(y, x);
       if (h === undefined) continue;
 
       if (brushState.rangeFilter.above.enabled && h < brushState.rangeFilter.above.input) continue;
@@ -211,11 +180,7 @@ function layerBrush(cellX: number, cellY: number) {
       if (oldLayer === newLayer) continue;
 
       recordChange(x, y, oldLayer, newLayer, "layer");
-
-      layerRows = mapState.layerMap[y];
-      if(!layerRows) continue;
-
-      layerRows[x] = newLayer;
+      setLayer(y, x, newLayer);
       markDirty(x, y);
     }
   }

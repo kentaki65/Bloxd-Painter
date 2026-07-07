@@ -13,9 +13,9 @@ export function initChunks() {
     }
 }
 export const mapInit = () => create2D(sizeState.heightLength, sizeState.widthLength, 0);
-export const blockMapInit = () => create3D(sizeState.maxHeight, sizeState.heightLength, sizeState.widthLength, 0);
+export const blockMapInit = () => create3D(sizeState.maxHeight, sizeState.heightLength, sizeState.widthLength, 1);
 export const layerMapInit = () => create2D(sizeState.heightLength, sizeState.widthLength, null);
-export const topBlockMap = () => create2D(sizeState.heightLength, sizeState.widthLength, null);
+export const topBlockMap = () => create2D(sizeState.heightLength, sizeState.widthLength, 4);
 export function initMaps() {
     mapState.map = mapInit();
     mapState.blockMap = blockMapInit();

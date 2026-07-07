@@ -1,7 +1,7 @@
 import { getBounds } from "./decode.js";
 import { resizeHeightEmpty, resizeMapEmpty } from "../chunk/index.js";
 import { chunkSize } from "../../core/constants.js";
-import { sizeState, mapState } from "../../states/index.js";
+import { sizeState, mapState, getHeight, setBlock } from "../../states/index.js";
 import { create3D } from "../../core/utils.js";
 import { Bounds, ParsedResult, RawSchemInput, RawChunkData } from "../../core/types.js";
 
@@ -11,10 +11,7 @@ function getMaxUsedHeight(): number {
   let max = 0;
   for (let z = 0; z < sizeState.heightLength; z++) {
     for (let x = 0; x < sizeState.widthLength; x++) {
-      const rows = mapState.map[z];
-      if(!rows) continue;
-
-      const h = rows[x];
+      const h = getHeight(z, x);
       if(h !== undefined && h > max) max = h;
     }
   }
@@ -38,13 +35,7 @@ function applyParsed(result: ParsedResult, bounds: Bounds): void {
       y >= sizeState.maxHeight
     ) continue;
 
-    const layer = mapState.blockMap[y];
-    if(!layer) continue;
-
-    const rows = layer[z];
-    if(!rows) continue;
-
-    rows[x] = b.id;
+    setBlock(y, z, x, b.id);
   }
 
   rebuildHeight();
@@ -104,7 +95,7 @@ export async function loadSchemAsWorld(result: ParsedResult): Promise<void> {
 export function convertChunks(): RawSchemInput | undefined {
   if (!mapState.blockMap) return undefined;
 
-  const blockMap = mapState.blockMap; // ← ローカル変数に受けて以降使う
+  const blockMap = mapState.blockMap;
 
   const chunks: RawChunkData[] = [];
   const chunkCountX = sizeState.chunkLenX;

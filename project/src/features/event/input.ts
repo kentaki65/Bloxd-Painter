@@ -1,13 +1,20 @@
-import { mouseState, cameraState, brushState, mapState } from "../../states/index.js";
+import { mouseState, cameraState, brushState, mapState, sizeState } from "../../states/index.js";
 import { undo, redo } from "../history/index.js";
 import { quickSave } from "../autosave/index.js";
 import { cellSize } from "../../core/constants.js";
 
-export function initCanvasInput(canvas: HTMLCanvasElement): void {
+interface CanvasInputElements {
+  zoomSizeBar: HTMLElement;
+  brushSizeBar: HTMLElement;
+  locationBar: HTMLElement;
+  heightBar: HTMLElement;
+}
+
+export function initCanvasInput(canvas: HTMLCanvasElement, el: CanvasInputElements): void {
   canvas.addEventListener("mousedown", (e) => {
     if (e.button === 0) {
       mouseState.leftDown = true;
-      
+
       if (brushState.mode === "flatten") {
         const size = cellSize * cameraState.zoom;
         const cellX = Math.floor((e.offsetX - cameraState.camX) / size);
@@ -33,33 +40,17 @@ export function initCanvasInput(canvas: HTMLCanvasElement): void {
     if (e.button === 2) mouseState.rightDown = false;
   });
 
-  canvas.addEventListener("mousemove", (e) => {
-    mouseState.mouseX = e.offsetX;
-    mouseState.mouseY = e.offsetY;
-
-    if (!cameraState.panning) return;
-
-    const dx = e.clientX - cameraState.panStartX;
-    const dy = e.clientY - cameraState.panStartY;
-
-    cameraState.camX += dx;
-    cameraState.camY += dy;
-
-    cameraState.panStartX = e.clientX;
-    cameraState.panStartY = e.clientY;
-  });
-
   window.addEventListener("wheel", (e) => {
     if (e.shiftKey) {
       cameraState.zoom += e.deltaY > 0 ? -0.1 : 0.1;
       cameraState.zoom = Math.max(0.05, Math.min(4, cameraState.zoom));
-      //zoomSizeBar.textContent = `Zoom: ${cameraState.zoom.toFixed(2)}`;
+      el.zoomSizeBar.textContent = `Zoom: ${cameraState.zoom.toFixed(2)}`;
       return;
     }
 
     brushState.brushRadius += e.deltaY > 0 ? -2 : 2;
     brushState.brushRadius = Math.max(1, Math.min(300, brushState.brushRadius));
-    //brushSizeBar.textContent = `Size: ${brushState.brushRadius}`;
+    el.brushSizeBar.textContent = `Size: ${brushState.brushRadius}`;
   });
 
   canvas.addEventListener("mousemove", (e) => {
@@ -70,15 +61,15 @@ export function initCanvasInput(canvas: HTMLCanvasElement): void {
     const cellX = Math.floor((mouseState.mouseX - cameraState.camX) / size);
     const cellY = Math.floor((mouseState.mouseY - cameraState.camY) / size);
 
-    /*if (
+    if (
       cellX >= 0 &&
       cellY >= 0 &&
       cellX < sizeState.widthLength &&
       cellY < sizeState.heightLength
     ) {
-      locationBar.textContent = `Location: ${cellX}, ${cellY}`;
-      heightBar.textContent = `Height: ${Math.floor(mapState.map[cellY][cellX])}/${sizeState.maxHeight}`;
-    }*/
+      el.locationBar.textContent = `Location: ${cellX}, ${cellY}`;
+      el.heightBar.textContent = `Height: ${Math.floor(mapState.map?.[cellY]?.[cellX] ?? 0)}/${sizeState.maxHeight}`;
+    }
 
     // パン処理
     if (!cameraState.panning) return;

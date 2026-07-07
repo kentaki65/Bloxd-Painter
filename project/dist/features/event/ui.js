@@ -3,7 +3,7 @@ import { brushState, mapState, sizeState } from "../../states/index.js";
 import { resizeHeight, resizeMap, redrawAllChunks, applyWaterLevel } from "../chunk/index.js";
 import { writeBloxdSchem, downloadSchems, convertChunks, loadSchem, loadSchemAsWorld } from "../parser/index.js";
 import { blockColors } from "../../core/constants.js";
-import { create2D, create3D } from "../../core/utils.js";
+import { initMaps } from "../../states/init.js";
 export function initUiEvents(el) {
     function switchTab(activeTab, activeContent, tabs, contents) {
         tabs.forEach(tab => tab.classList.remove("tab--active"));
@@ -31,6 +31,22 @@ export function initUiEvents(el) {
         el.toolName2.textContent = "Options";
         switchTab(el.optionTab, el.optionsContent, tabs2, contents2);
     });
+    el.brushModeButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+            el.brushModeButtons.forEach((b) => b.classList.remove("active"));
+            btn.classList.add("active");
+            brushState.mode = btn.id;
+            el.modeBar.textContent = `Mode: ${btn.id}`;
+        });
+    });
+    el.blockModeButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+            el.blockModeButtons.forEach((b) => b.classList.remove("active"));
+            btn.classList.add("active");
+            brushState.selectedBlock = btn.id;
+            el.selectBlockBar.textContent = `Block: ${btn.id}`;
+        });
+    });
     Object.keys(blockColors).forEach(name => {
         const elementId = "block" + name[0]?.toUpperCase() + name.slice(1);
         const element = document.getElementById(elementId);
@@ -42,10 +58,7 @@ export function initUiEvents(el) {
         }
     });
     el.newFileInput.addEventListener("click", () => {
-        mapState.map = create2D(sizeState.heightLength, sizeState.widthLength, 0);
-        mapState.blockMap = create3D(sizeState.maxHeight, sizeState.heightLength, sizeState.widthLength, 0);
-        mapState.layerMap = create2D(sizeState.heightLength, sizeState.widthLength, null);
-        mapState.topBlockMap = create2D(sizeState.heightLength, sizeState.widthLength, null);
+        initMaps();
         redrawAllChunks();
     });
     el.exportInput.addEventListener("click", async () => {

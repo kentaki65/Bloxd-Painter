@@ -1,3 +1,4 @@
+// features/event/index.ts
 import { initCanvasInput, initKeyboardShortcuts } from "./input.js";
 import { initUiEvents } from "./ui.js";
 import { loadAllBrushes } from "../brush/loader.js";
@@ -5,9 +6,27 @@ import { getElement } from "../../core/utils.js";
 const brushImages = [...Array.from({ length: 36 }, (_, index) => {
         return `brush${(index + 1)}.webp`;
     })];
+const blockIds = [
+    "Dirt",
+    "Grass Block",
+    "Sand",
+    "Stone",
+    "MessyStone",
+    "Gravel",
+    "Clay",
+    "Andesite",
+    "Diorite",
+    "Granite",
+    "Snow"
+];
 export function eventInit() {
     const canvas = getElement("canvas");
-    initCanvasInput(canvas);
+    initCanvasInput(canvas, {
+        zoomSizeBar: getElement("zoom"),
+        brushSizeBar: getElement("brushSize"),
+        locationBar: getElement("location"),
+        heightBar: getElement("heightchild"),
+    });
     initKeyboardShortcuts();
     initUiEvents({
         modeBar: getElement("mode"),
@@ -33,6 +52,17 @@ export function eventInit() {
         waterLevelInput: getElement("waterLevelHeight"),
         aboveEnabled: getElement("atOrAboveEnabled"),
         belowEnabled: getElement("atOrBelowEnabled"),
+        brushModeButtons: [
+            getElement("sprayPaint"),
+            getElement("height"),
+            getElement("flatten"),
+            getElement("smooth"),
+        ],
+        blockModeButtons: [
+            ...blockIds.map(id => {
+                return getElement(id);
+            })
+        ]
     });
     loadAllBrushes(brushImages, getElement("brushUI"), getElement("brushType"));
 }

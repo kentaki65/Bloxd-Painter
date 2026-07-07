@@ -2,7 +2,7 @@ name: Deploy GitHub Pages
 
 on:
   push:
-    branches: ["main"] # あなたのメインブランチ名（masterの場合は master に変更）
+    branches: ["main"]
 
 permissions:
   contents: read
@@ -26,7 +26,6 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      # 🔴 ここで「./project」フォルダを指定しています
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

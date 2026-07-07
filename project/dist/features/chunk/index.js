@@ -1,7 +1,8 @@
-import { chunkState, sizeState, brushState, mapState } from "../../states/index.js";
+import { chunkState, sizeState, brushState, mapState, getHeight, setHeight, tryGetTopBlock } from "../../states/index.js";
 import { chunkSize, LEAF_BLOCKS } from "../../core/constants.js";
 import { resize2D, resize3D, create2D, create3D } from "../../core/utils.js";
 import { runLoading } from "../UI/loading.js";
+import { setBlock, getBlock } from "../../states/index.js";
 export async function resizeMap(newChunkX, newChunkZ) {
     await runLoading(async () => {
         const oldChunkCanvas = chunkState.chunkCanvas;
@@ -19,7 +20,7 @@ export async function resizeMap(newChunkX, newChunkZ) {
             return;
         const newMap = resize2D(oldMap, newHeight, newWidth, 0);
         const newBlockMap = resize3D(oldBlockMap, sizeState.maxHeight, newHeight, newWidth, 0);
-        const newTopBlockMap = resize2D(oldTopBlockMap, newHeight, newWidth, 0);
+        const newTopBlockMap = resize2D(oldTopBlockMap, newHeight, newWidth, 4);
         const newLayerMap = resize2D(oldLayerMap, newHeight, newWidth, null);
         sizeState.chunkLenX = newChunkX;
         sizeState.chunkLenZ = newChunkZ;
@@ -30,7 +31,7 @@ export async function resizeMap(newChunkX, newChunkZ) {
         const newCols = Math.ceil(newWidth / chunkSize);
         const newRows = Math.ceil(newHeight / chunkSize);
         const newChunkCanvas = Array.from({ length: newRows }, (_, cy) => Array.from({ length: newCols }, (_, cx) => {
-            const chunkRows = oldChunkCanvas[cy]; // ← ローカル変数を使う
+            const chunkRows = oldChunkCanvas[cy];
             return (cy < oldRows && cx < oldCols)
                 ? chunkRows?.[cx] ?? null
                 : null;
@@ -62,11 +63,7 @@ export async function resizeMapEmpty(newChunkX, newChunkZ) {
         chunkState.chunkRows = newChunkZ;
         chunkState.chunkCanvas = create2D(newChunkZ, newChunkZ, null);
         chunkState.dirtyChunks.clear();
-        for (let cy = 0; cy < newChunkZ; cy++) {
-            for (let cx = 0; cx < newChunkX; cx++) {
-                chunkState.dirtyChunks.add(`${cx},${cy}`);
-            }
-        }
+        redrawAllChunks(newChunkZ, newChunkX);
     });
 }
 export async function resizeHeight(newMaxHeight) {
@@ -80,12 +77,9 @@ export async function resizeHeight(newMaxHeight) {
         const newMap3D = resize3D(old, newMaxHeight, height, width, 0);
         for (let z = 0; z < height; z++) {
             for (let x = 0; x < width; x++) {
-                const mapRow = map[z];
-                if (!mapRow)
-                    continue;
-                const value = mapRow[x];
+                const value = getHeight(z, x);
                 if (value !== undefined && value >= newMaxHeight) {
-                    mapRow[x] = newMaxHeight - 1;
+                    setHeight(z, x, newMaxHeight - 1);
                 }
             }
         }
@@ -108,7 +102,7 @@ export function rebuildColumn(x, y, height) {
         return;
     const safeTop = Math.min(sizeState.maxHeight - 1, Math.floor(height));
     for (let yy = safeTop; yy >= 0; yy--) {
-        const block = mapState.blockMap[yy]?.[y]?.[x];
+        const block = getBlock(yy, y, x);
         if (block !== undefined && LEAF_BLOCKS.has(block)) {
             return;
         }
@@ -126,28 +120,16 @@ export function rebuildColumn(x, y, height) {
         const layer = brushState.blockLayers[layerIndex];
         if (!layer)
             return;
-        const height = mapState.blockMap[yy];
-        if (!height)
+        if (!setBlock(yy, y, x, layer.block))
             continue;
-        const rows = height[y];
-        if (!rows)
-            return;
-        rows[x] = layer.block;
         remaining--;
     }
     for (let yy = safeTop + 1; yy < sizeState.maxHeight; yy++) {
-        const height = mapState.blockMap[yy];
-        if (!height)
-            continue;
-        const rows = height[y];
-        if (!rows)
-            return;
-        rows[x] = 0;
+        setBlock(yy, y, x, 0);
     }
-    const override = mapState.topBlockMap[y]?.[x];
-    const topRow = mapState.blockMap[safeTop]?.[y];
-    if (override !== null && override !== undefined && topRow) {
-        topRow[x] = override;
+    const override = tryGetTopBlock(y, x);
+    if (override !== undefined && override !== null) {
+        setBlock(safeTop, y, x, override);
     }
 }
 export function applyColumnChanges(changed) {
@@ -157,12 +139,9 @@ export function applyColumnChanges(changed) {
         const [x, y] = key.split(",").map(Number);
         if (x === undefined || y === undefined)
             continue;
-        const mapRow = mapState.map[y];
-        if (mapRow === undefined)
-            continue;
-        const height = mapRow[x];
+        const height = getHeight(y, x);
         if (height === undefined)
-            continue;
+            return;
         rebuildColumn(x, y, height);
         const ccx = (x / chunkSize) | 0;
         const ccy = (y / chunkSize) | 0;
@@ -174,9 +153,9 @@ export function markDirty(x, y) {
     const cy = (y / chunkSize) | 0;
     chunkState.dirtyChunks.add(`${cx},${cy}`);
 }
-export function redrawAllChunks() {
-    for (let cy = 0; cy < chunkState.chunkRows; cy++) {
-        for (let cx = 0; cx < chunkState.chunkCols; cx++) {
+export function redrawAllChunks(rows = chunkState.chunkRows, cols = chunkState.chunkCols) {
+    for (let cy = 0; cy < rows; cy++) {
+        for (let cx = 0; cx < cols; cx++) {
             chunkState.dirtyChunks.add(`${cx},${cy}`);
         }
     }
@@ -209,10 +188,6 @@ export function applyWaterLevel() {
             }
         }
     }
-    for (let cy = 0; cy < chunkState.chunkRows; cy++) {
-        for (let cx = 0; cx < chunkState.chunkCols; cx++) {
-            chunkState.dirtyChunks.add(`${cx},${cy}`);
-        }
-    }
+    redrawAllChunks();
 }
 //# sourceMappingURL=index.js.map

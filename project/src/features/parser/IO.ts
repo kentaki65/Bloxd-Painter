@@ -1,6 +1,6 @@
-import { mapState, sizeState, chunkState } from "../../states/index.js";
+import { mapState, sizeState, chunkState, getHeight } from "../../states/index.js";
 import { chunkSize } from "../../core/constants.js";
-import { resizeMap, resizeHeight, rebuildColumn } from "../chunk/index.js";
+import { resizeMap, resizeHeight, rebuildColumn, redrawAllChunks } from "../chunk/index.js";
 import { parse } from "./decode.js";
 import { WrittenSchems, ImportedJsonData, ParsedResult } from "../../core/types.js";
 import { Buffer } from "https://esm.sh/buffer";
@@ -109,11 +109,8 @@ export function importJSON(file: File): void {
       if (!mapState.map) return;
 
       for (let y = 0; y < sizeState.heightLength; y++) {
-        const rows = mapState.map[y];
-        if (!rows) continue;
-
         for (let x = 0; x < sizeState.widthLength; x++) {
-          const height = rows[x];
+          const height = getHeight(y, x);
           if (height === undefined) continue;
 
           rebuildColumn(x, y, height);
@@ -121,11 +118,7 @@ export function importJSON(file: File): void {
       }
 
       chunkState.dirtyChunks.clear();
-      for (let cy = 0; cy < chunkState.chunkRows; cy++) {
-        for (let cx = 0; cx < chunkState.chunkCols; cx++) {
-          chunkState.dirtyChunks.add(`${cx},${cy}`);
-        }
-      }
+      redrawAllChunks();
 
       console.log("Loaded JSON");
     } catch (e) {

@@ -2,11 +2,11 @@
 import { draw } from "./features/render/index.js";
 import { eventInit } from "./features/event/index.js";
 import { initMaps, initChunks } from "./states/init.js";
-import { mapState, mouseState } from "./states/index.js";
+import { mapState, mouseState, sizeState } from "./states/index.js";
 import { applyBrush } from "./features/brush/index.js";
 import { beginStroke, endStroke } from "./features/history/index.js";
 import { initDB, loadFromDB, autoSave } from "./features/autosave/index.js";
-import { redrawAllChunks } from "./features/chunk/index.js";
+import { redrawAllChunks, rebuildColumn } from "./features/chunk/index.js";
 import { getElement } from "./core/utils.js";
 
 const canvas = getElement<HTMLCanvasElement>("canvas");
@@ -31,6 +31,14 @@ async function main(): Promise<void> {
 
   initChunks();
   initMaps();
+
+  for (let z = 0; z < sizeState.heightLength; z++) {
+    for (let x = 0; x < sizeState.widthLength; x++) {
+      rebuildColumn(x, z, 1);
+    }
+  }
+  
+  redrawAllChunks();
 
   if (data) {
     mapState.map = data.map;
