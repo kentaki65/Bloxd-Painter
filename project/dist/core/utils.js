@@ -25,4 +25,31 @@ export function getElement(id) {
     }
     return el;
 }
+export function createSharedFloat2D(rows, cols, value) {
+    const buffer = new SharedArrayBuffer(rows * cols * Float32Array.BYTES_PER_ELEMENT);
+    const arr = new Float32Array(buffer);
+    if (value !== 0)
+        arr.fill(value);
+    return arr;
+}
+export function resizeSharedFloat2D(oldArray, oldRows, oldCols, newRows, newCols, fallback) {
+    const newArr = createSharedFloat2D(newRows, newCols, fallback);
+    if (!oldArray)
+        return newArr;
+    const copyRows = Math.min(oldRows, newRows);
+    const copyCols = Math.min(oldCols, newCols);
+    for (let y = 0; y < copyRows; y++) {
+        const oldOffset = y * oldCols;
+        const newOffset = y * newCols;
+        for (let x = 0; x < copyCols; x++) {
+            newArr[newOffset + x] = oldArray[oldOffset + x] ?? fallback;
+        }
+    }
+    return newArr;
+}
+export function toSharedFloat32(source) {
+    const shared = new Float32Array(new SharedArrayBuffer(source.length * Float32Array.BYTES_PER_ELEMENT));
+    shared.set(source);
+    return shared;
+}
 //# sourceMappingURL=utils.js.map

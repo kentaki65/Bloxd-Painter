@@ -16,5 +16,5 @@
       "node"
     ]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "coi-serviceworker.js"]
 }

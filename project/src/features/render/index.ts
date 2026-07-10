@@ -1,4 +1,4 @@
-import { sizeState, chunkState, mapState, brushState, cameraState, mouseState, getTopBlock, getBlock, tryGetTopBlock } from "../../states/index.js";
+import { sizeState, chunkState, mapState, brushState, cameraState, mouseState, tryGetHeight, getBlock, tryGetTopBlock } from "../../states/index.js";
 import { cellSize, contour, blockColors, layerColors, DEFAULT_COLOR, chunkSize, idToName } from "../../core/constants.js";
 import { SelectedBlock } from "../../core/types.js";
 const colorCache = new Map();
@@ -84,11 +84,11 @@ export function renderChunk(cx: number, cy: number): void{
     if (row === undefined || !layerRow) continue;
 
     for (let x = startX; x < endX; x++) {
-      const h = row[x] ?? 0;
+      const h = tryGetHeight(y, x) ?? 0;
 
       const topY = Math.min(
         sizeState.maxHeight - 1,
-        Math.max(0, Math.floor(row[x] ?? 0))
+        Math.max(0, Math.floor(h))
       );
 
       const topValue = tryGetTopBlock(y, x);
@@ -110,8 +110,8 @@ export function renderChunk(cx: number, cy: number): void{
       ctx.fillStyle = getColor(blockName);
       ctx.fillRect(px, py, size, size);
 
-      const hLeft = row[x - 1] ?? h;
-      const hUp = mapState.map[y-1]?.[x] ?? h;
+      const hLeft = tryGetHeight(y, x - 1) ?? h;
+      const hUp = tryGetHeight(y - 1, x) ?? h;
 
       const shadowStrength = Math.max(
         hLeft - h,
@@ -144,7 +144,7 @@ export function renderChunk(cx: number, cy: number): void{
       const level = (h / contour) | 0;
 
       if (x < sizeState.widthLength - 1) {
-        const rightLevel = ((row[x+1] ?? 0) / contour) | 0;
+        const rightLevel = ((tryGetHeight(y, x + 1) ?? 0) / contour) | 0;
         if (level !== rightLevel) {
           ctx.moveTo((x-startX+1)*size, (y-startY)*size);
           ctx.lineTo((x-startX+1)*size, (y-startY+1)*size);
@@ -152,7 +152,7 @@ export function renderChunk(cx: number, cy: number): void{
       }
 
       if (y < sizeState.heightLength - 1) {
-        const downLevel = ((mapState.map[y+1]?.[x] ?? 0) / contour) | 0;
+        const downLevel = ((tryGetHeight(y + 1, x) ?? 0) / contour) | 0;
         if (level !== downLevel) {
           ctx.moveTo((x-startX)*size, (y-startY+1)*size);
           ctx.lineTo((x-startX+1)*size, (y-startY+1)*size);
@@ -173,11 +173,9 @@ export function draw(canvas: HTMLCanvasElement){
   if(!ctx) return;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
   ctx.imageSmoothingEnabled = false;
 
   const size = cellSize * cameraState.zoom;
-
   const chunkPixel = chunkSize * size;
 
   const startChunkX = Math.max(0, Math.floor(-cameraState.camX / chunkPixel));
@@ -185,13 +183,19 @@ export function draw(canvas: HTMLCanvasElement){
   const endChunkX = Math.min(chunkState.chunkCols, Math.ceil((canvas.width - cameraState.camX) / chunkPixel));
   const endChunkY = Math.min(chunkState.chunkRows, Math.ceil((canvas.height - cameraState.camY) / chunkPixel));
 
+  const MAX_CHUNKS_PER_FRAME = 32;
+  let processed = 0;
+
   for(const key of chunkState.dirtyChunks){
+    if (processed >= MAX_CHUNKS_PER_FRAME) break;
+
     const [cx, cy] = key.split(",").map(Number);
     if(cx === undefined || cy === undefined) continue;
 
     renderChunk(cx, cy);
+    chunkState.dirtyChunks.delete(key);
+    processed++;
   }
-  chunkState.dirtyChunks.clear();
 
   for(let cy = startChunkY; cy < endChunkY; cy++){
     for(let cx = startChunkX; cx < endChunkX; cx++){

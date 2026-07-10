@@ -1,6 +1,6 @@
 import { sizeState, chunkState, mapState } from "./index.js";
 import { chunkSize } from "../core/constants.js";
-import { create2D, create3D } from "../core/utils.js";
+import { create2D, create3D, createSharedFloat2D } from "../core/utils.js";
 export function initChunks() {
     chunkState.chunkCols = Math.ceil(sizeState.widthLength / chunkSize);
     chunkState.chunkRows = Math.ceil(sizeState.heightLength / chunkSize);
@@ -12,7 +12,7 @@ export function initChunks() {
         }
     }
 }
-export const mapInit = () => create2D(sizeState.heightLength, sizeState.widthLength, 0);
+export const mapInit = () => createSharedFloat2D(sizeState.heightLength, sizeState.widthLength, 0);
 export const blockMapInit = () => create3D(sizeState.maxHeight, sizeState.heightLength, sizeState.widthLength, 1);
 export const layerMapInit = () => create2D(sizeState.heightLength, sizeState.widthLength, null);
 export const topBlockMap = () => create2D(sizeState.heightLength, sizeState.widthLength, 4);

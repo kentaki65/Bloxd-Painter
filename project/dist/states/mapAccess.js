@@ -1,6 +1,6 @@
-import { mapState } from "./mapState.js";
-const test = true;
-const LOGOFF = true;
+import { mapState, sizeState } from "./index.js";
+const test = false;
+const LOGOFF = false;
 function warnMissing(label, z, x, reason) {
     if (LOGOFF)
         return;
@@ -9,8 +9,16 @@ function warnMissing(label, z, x, reason) {
     else
         console.warn(`[${label}] missing at z=${z}, x=${x} (${reason})`);
 }
+function inBounds(z, x) {
+    return (x >= 0 && x < sizeState.widthLength &&
+        z >= 0 && z < sizeState.heightLength);
+}
 export function tryGetHeight(z, x) {
-    return mapState.map?.[z]?.[x];
+    if (!mapState.map)
+        return undefined;
+    if (!inBounds(z, x))
+        return undefined;
+    return mapState.map[z * sizeState.widthLength + x];
 }
 export function tryGetTopBlock(z, x) {
     return mapState.topBlockMap?.[z]?.[x];
@@ -20,17 +28,15 @@ export function getHeight(z, x) {
         warnMissing("getHeight", z, x, "map is null");
         return undefined;
     }
-    const row = mapState.map[z];
-    if (row === undefined) {
-        warnMissing("getHeight", z, x, "row out of range");
+    if (x < 0 || x >= sizeState.widthLength) {
+        warnMissing("getHeight", z, x, "x out of range");
         return undefined;
     }
-    const h = row[x];
-    if (h === undefined) {
-        warnMissing("getHeight", z, x, "cell out of range");
+    if (z < 0 || z >= sizeState.heightLength) {
+        warnMissing("getHeight", z, x, "z out of range");
         return undefined;
     }
-    return h;
+    return mapState.map[z * sizeState.widthLength + x];
 }
 export function getTopBlock(z, x) {
     if (!mapState.topBlockMap) {
@@ -106,12 +112,11 @@ export function setHeight(z, x, value) {
         warnMissing("setHeight", z, x, "map is null");
         return false;
     }
-    const row = mapState.map[z];
-    if (row === undefined) {
-        warnMissing("setHeight", z, x, "row out of range");
+    if (!inBounds(z, x)) {
+        warnMissing("setHeight", z, x, "out of range");
         return false;
     }
-    row[x] = value;
+    mapState.map[z * sizeState.widthLength + x] = value;
     return true;
 }
 export function setTopBlock(z, x, value) {

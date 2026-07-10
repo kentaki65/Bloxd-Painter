@@ -1,30 +1,41 @@
-import { stackState, mapState } from "../../states/index.js";
+import { stackState, mapState, sizeState } from "../../states/index.js";
 import { applyColumnChanges, markDirty } from "../chunk/index.js";
-let currentStroke = null;
-let strokeMap = null;
+import { setHeight } from "../../states/index.js";
+let heightMap = null;
+let blockMap = null;
+let layerMap = null;
 export function beginStroke() {
-    currentStroke = [];
-    strokeMap = new Map();
+    heightMap = new Map();
+    blockMap = new Map();
+    layerMap = new Map();
 }
 export function endStroke() {
-    if (!strokeMap || strokeMap.size === 0)
+    const size = (heightMap?.size ?? 0) + (blockMap?.size ?? 0) + (layerMap?.size ?? 0);
+    if (size === 0)
         return;
-    currentStroke = Array.from(strokeMap.values());
+    const currentStroke = [
+        ...(heightMap?.values() ?? []),
+        ...(blockMap?.values() ?? []),
+        ...(layerMap?.values() ?? []),
+    ];
     stackState.undoStack.push(currentStroke);
     if (stackState.undoStack.length > stackState.MAX_HISTORY) {
         stackState.undoStack.shift();
     }
     stackState.redoStack.length = 0;
-    currentStroke = null;
-    strokeMap = null;
+    heightMap = null;
+    blockMap = null;
+    layerMap = null;
 }
 export function recordChange(x, y, before, after, type) {
-    if (!strokeMap)
+    const width = sizeState.widthLength;
+    const key = y * width + x;
+    const targetMap = type === "height" ? heightMap : type === "block" ? blockMap : layerMap;
+    if (!targetMap)
         return;
-    const key = `${type}:${x},${y}`;
-    const existing = strokeMap.get(key);
+    const existing = targetMap.get(key);
     if (!existing) {
-        strokeMap.set(key, { x, y, before, after, type });
+        targetMap.set(key, { x, y, before, after, type });
     }
     else {
         existing.after = after;
@@ -34,13 +45,11 @@ export function undo() {
     const stroke = stackState.undoStack.pop();
     if (!stroke)
         return;
-    const heightChanged = new Set();
+    const heightChanged = new Map();
     for (const c of stroke) {
         if (c.type === "height") {
-            const row = mapState.map?.[c.y];
-            if (row)
-                row[c.x] = c.before;
-            heightChanged.add(`${c.x},${c.y}`);
+            setHeight(c.y, c.x, c.before);
+            heightChanged.set(`${c.x},${c.y}`, c.after);
         }
         else if (c.type === "block") {
             const row = mapState.topBlockMap?.[c.y];
@@ -66,13 +75,11 @@ export function redo() {
     const stroke = stackState.redoStack.pop();
     if (!stroke)
         return;
-    const heightChanged = new Set();
+    const heightChanged = new Map();
     for (const c of stroke) {
         if (c.type === "height") {
-            const row = mapState.map?.[c.y];
-            if (row)
-                row[c.x] = c.after;
-            heightChanged.add(`${c.x},${c.y}`);
+            setHeight(c.y, c.x, c.after);
+            heightChanged.set(`${c.x},${c.y}`, c.before);
         }
         else if (c.type === "block") {
             const row = mapState.topBlockMap?.[c.y];

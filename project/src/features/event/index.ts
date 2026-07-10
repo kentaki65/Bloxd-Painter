@@ -35,6 +35,8 @@ export function eventInit(): void {
   initKeyboardShortcuts();
 
   initUiEvents({
+    undoBtn: getElement("undo"), 
+    redoBtn: getElement("redo"),
     modeBar: getElement("mode"),
     layerBar: getElement("layer"),
     selectBlockBar: getElement("selectBlock"),
@@ -53,7 +55,8 @@ export function eventInit(): void {
     importInput: getElement("importInput"),
     fileInput: getElement<HTMLInputElement>("schemInput"),
     fileNameInput: getElement<HTMLInputElement>("volume"),
-    paletteSizeInput: getElement<HTMLInputElement>("paletteSize"),
+    paletteWidthInput: getElement<HTMLInputElement>("paletteWidth"),
+    paletteHeightInput: getElement<HTMLInputElement>("paletteHeight"),
     maxHeightInput: getElement<HTMLInputElement>("maxHeight"),
     waterLevelInput: getElement<HTMLInputElement>("waterLevelHeight"),
     aboveEnabled: getElement<HTMLInputElement>("atOrAboveEnabled"),
@@ -68,7 +71,16 @@ export function eventInit(): void {
       ...blockIds.map(id => {
         return getElement(id);
       })
-    ]
+    ],
+    
+    createWorldOverlay: getElement("createWorldOverlay"),
+    createWorldConfirm: getElement("createWorldConfirm"),
+    createWorldCancel: getElement("createWorldCancel"),
+    newFileNameInput: getElement<HTMLInputElement>("newFileName"),
+    newChunkXInput: getElement<HTMLInputElement>("newChunkX"),
+    newChunkZInput: getElement<HTMLInputElement>("newChunkZ"),
+    newMaxHeightInput: getElement<HTMLInputElement>("newMaxHeight"),
+    newWaterLevelInput: getElement<HTMLInputElement>("newWaterLevel"),
   });
 
   loadAllBrushes(brushImages, getElement("brushUI"), getElement("brushType"));

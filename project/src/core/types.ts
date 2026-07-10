@@ -41,7 +41,7 @@ export interface SizeState {
 }
 
 export interface MapState {
-  map: number[][] | null;
+  map: Float32Array | null;
   blockMap: number[][][] | null;
   layerMap: (string | null)[][] | null;
   topBlockMap: (number | null)[][] | null;
@@ -93,10 +93,14 @@ export interface StackState {
 }
 
 export interface SaveData {
-	map: number[][] | null,
+	map: Float32Array | null,
 	topBlockMap: (number | null)[][] | null,
-	layerMap: (string | null)[][] | null
+	layerMap: (string | null)[][] | null,
+	chunkLenX: number,
+	chunkLenZ: number,
+	maxHeight: number,
 }
+
 export interface SchemChunk {
   x: number;
   y: number;

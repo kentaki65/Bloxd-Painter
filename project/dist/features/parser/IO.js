@@ -2,6 +2,7 @@ import { mapState, sizeState, chunkState, getHeight } from "../../states/index.j
 import { chunkSize } from "../../core/constants.js";
 import { resizeMap, resizeHeight, rebuildColumn, redrawAllChunks } from "../chunk/index.js";
 import { parse } from "./decode.js";
+import { createSharedFloat2D } from "../../core/utils.js";
 import { Buffer } from "https://esm.sh/buffer";
 export async function downloadSchems(result) {
     const baseName = mapState.fileName || "schem";
@@ -65,8 +66,8 @@ export function importJSON(file) {
         try {
             const parseData = reader.result;
             if (!parseData || typeof parseData !== "string")
-                return; // readAsText なので string のはず
-            const data = JSON.parse(parseData); // ← parseData を使う
+                return;
+            const data = JSON.parse(parseData);
             if (!data.map || !data.meta) {
                 throw new Error("Invalid format");
             }
@@ -81,17 +82,28 @@ export function importJSON(file) {
             if (data.meta.maxHeight !== sizeState.maxHeight) {
                 await resizeHeight(data.meta.maxHeight);
             }
-            mapState.map = data.map;
+            const width = sizeState.widthLength;
+            const height = sizeState.heightLength;
+            const flatMap = createSharedFloat2D(height, width, 0);
+            for (let z = 0; z < height; z++) {
+                const row = data.map[z];
+                if (!row)
+                    continue;
+                for (let x = 0; x < width; x++) {
+                    flatMap[z * width + x] = row[x] ?? 0;
+                }
+            }
+            mapState.map = flatMap;
             mapState.topBlockMap = data.topBlockMap ?? null;
             mapState.layerMap = data.layerMap ?? null;
             if (!mapState.map)
                 return;
             for (let y = 0; y < sizeState.heightLength; y++) {
                 for (let x = 0; x < sizeState.widthLength; x++) {
-                    const height = getHeight(y, x);
-                    if (height === undefined)
+                    const h = getHeight(y, x);
+                    if (h === undefined)
                         continue;
-                    rebuildColumn(x, y, height);
+                    rebuildColumn(x, y, h);
                 }
             }
             chunkState.dirtyChunks.clear();

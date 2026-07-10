@@ -29,6 +29,8 @@ export function eventInit() {
     });
     initKeyboardShortcuts();
     initUiEvents({
+        undoBtn: getElement("undo"),
+        redoBtn: getElement("redo"),
         modeBar: getElement("mode"),
         layerBar: getElement("layer"),
         selectBlockBar: getElement("selectBlock"),
@@ -47,7 +49,8 @@ export function eventInit() {
         importInput: getElement("importInput"),
         fileInput: getElement("schemInput"),
         fileNameInput: getElement("volume"),
-        paletteSizeInput: getElement("paletteSize"),
+        paletteWidthInput: getElement("paletteWidth"),
+        paletteHeightInput: getElement("paletteHeight"),
         maxHeightInput: getElement("maxHeight"),
         waterLevelInput: getElement("waterLevelHeight"),
         aboveEnabled: getElement("atOrAboveEnabled"),
@@ -62,7 +65,15 @@ export function eventInit() {
             ...blockIds.map(id => {
                 return getElement(id);
             })
-        ]
+        ],
+        createWorldOverlay: getElement("createWorldOverlay"),
+        createWorldConfirm: getElement("createWorldConfirm"),
+        createWorldCancel: getElement("createWorldCancel"),
+        newFileNameInput: getElement("newFileName"),
+        newChunkXInput: getElement("newChunkX"),
+        newChunkZInput: getElement("newChunkZ"),
+        newMaxHeightInput: getElement("newMaxHeight"),
+        newWaterLevelInput: getElement("newWaterLevel"),
     });
     loadAllBrushes(brushImages, getElement("brushUI"), getElement("brushType"));
 }

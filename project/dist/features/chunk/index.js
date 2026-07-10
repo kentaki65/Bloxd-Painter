@@ -1,8 +1,8 @@
 import { chunkState, sizeState, brushState, mapState, getHeight, setHeight, tryGetTopBlock } from "../../states/index.js";
-import { chunkSize, LEAF_BLOCKS } from "../../core/constants.js";
-import { resize2D, resize3D, create2D, create3D } from "../../core/utils.js";
+import { chunkSize } from "../../core/constants.js";
+import { resize2D, resize3D, create2D, create3D, createSharedFloat2D, resizeSharedFloat2D } from "../../core/utils.js";
 import { runLoading } from "../UI/loading.js";
-import { setBlock, getBlock } from "../../states/index.js";
+import { setBlock } from "../../states/index.js";
 export async function resizeMap(newChunkX, newChunkZ) {
     await runLoading(async () => {
         const oldChunkCanvas = chunkState.chunkCanvas;
@@ -10,6 +10,8 @@ export async function resizeMap(newChunkX, newChunkZ) {
             return;
         const oldCols = chunkState.chunkCols;
         const oldRows = chunkState.chunkRows;
+        const oldWidth = sizeState.widthLength;
+        const oldHeight = sizeState.heightLength;
         const newWidth = newChunkX * chunkSize;
         const newHeight = newChunkZ * chunkSize;
         const oldMap = mapState.map;
@@ -18,7 +20,7 @@ export async function resizeMap(newChunkX, newChunkZ) {
         const oldTopBlockMap = mapState.topBlockMap;
         if (!oldMap || !oldBlockMap || !oldLayerMap || !oldTopBlockMap)
             return;
-        const newMap = resize2D(oldMap, newHeight, newWidth, 0);
+        const newMap = resizeSharedFloat2D(oldMap, oldHeight, oldWidth, newHeight, newWidth, 0);
         const newBlockMap = resize3D(oldBlockMap, sizeState.maxHeight, newHeight, newWidth, 0);
         const newTopBlockMap = resize2D(oldTopBlockMap, newHeight, newWidth, 4);
         const newLayerMap = resize2D(oldLayerMap, newHeight, newWidth, null);
@@ -53,15 +55,15 @@ export async function resizeMapEmpty(newChunkX, newChunkZ) {
     await runLoading(async () => {
         const newWidth = newChunkX * chunkSize;
         const newHeight = newChunkZ * chunkSize;
-        mapState.map = create2D(newHeight, newWidth, 0);
-        mapState.blockMap = create3D(sizeState.maxHeight, newHeight, newWidth, 0);
-        mapState.topBlockMap = create2D(newHeight, newWidth, null);
+        mapState.map = createSharedFloat2D(newHeight, newWidth, 0);
+        mapState.blockMap = create3D(sizeState.maxHeight, newHeight, newWidth, 1);
+        mapState.topBlockMap = create2D(newHeight, newWidth, 4);
         mapState.layerMap = create2D(newHeight, newWidth, null);
         sizeState.chunkLenX = newChunkX;
         sizeState.chunkLenZ = newChunkZ;
         chunkState.chunkCols = newChunkX;
         chunkState.chunkRows = newChunkZ;
-        chunkState.chunkCanvas = create2D(newChunkZ, newChunkZ, null);
+        chunkState.chunkCanvas = create2D(newChunkZ, newChunkX, null);
         chunkState.dirtyChunks.clear();
         redrawAllChunks(newChunkZ, newChunkX);
     });
@@ -97,34 +99,44 @@ export async function resizeHeightEmpty(newMaxHeight) {
         redrawAllChunks();
     });
 }
-export function rebuildColumn(x, y, height) {
+export function rebuildColumn(x, y, height, oldHeight) {
     if (!mapState.blockMap || !mapState.topBlockMap)
         return;
-    const safeTop = Math.min(sizeState.maxHeight - 1, Math.floor(height));
-    for (let yy = safeTop; yy >= 0; yy--) {
-        const block = getBlock(yy, y, x);
-        if (block !== undefined && LEAF_BLOCKS.has(block)) {
-            return;
-        }
-    }
+    const maxH = sizeState.maxHeight;
+    const safeTop = Math.min(maxH - 1, Math.floor(height));
+    const hasOld = oldHeight !== undefined;
+    const oldSafeTop = hasOld ? Math.min(maxH - 1, Math.floor(oldHeight)) : -1;
+    if (hasOld && oldSafeTop === safeTop)
+        return;
     const topLayer = brushState.blockLayers[0];
     if (!topLayer)
         return;
+    const writeDownTo = !hasOld
+        ? 0
+        : safeTop > oldSafeTop
+            ? oldSafeTop + 1
+            : safeTop + 1;
     let layerIndex = 0;
     let remaining = topLayer.depth;
-    for (let yy = safeTop; yy >= 0; yy--) {
+    for (let yy = safeTop; yy >= writeDownTo; yy--) {
         if (remaining <= 0) {
             layerIndex++;
             remaining = brushState.blockLayers[layerIndex]?.depth ?? Infinity;
         }
         const layer = brushState.blockLayers[layerIndex];
         if (!layer)
-            return;
+            break;
         if (!setBlock(yy, y, x, layer.block))
             continue;
         remaining--;
     }
-    for (let yy = safeTop + 1; yy < sizeState.maxHeight; yy++) {
+    const clearFrom = safeTop + 1;
+    const clearUpTo = !hasOld
+        ? maxH
+        : safeTop < oldSafeTop
+            ? oldSafeTop + 1
+            : clearFrom;
+    for (let yy = clearFrom; yy < clearUpTo; yy++) {
         setBlock(yy, y, x, 0);
     }
     const override = tryGetTopBlock(y, x);
@@ -135,14 +147,14 @@ export function rebuildColumn(x, y, height) {
 export function applyColumnChanges(changed) {
     if (!mapState.map)
         return;
-    for (const key of changed) {
+    for (const [key, oldH] of changed) {
         const [x, y] = key.split(",").map(Number);
         if (x === undefined || y === undefined)
             continue;
         const height = getHeight(y, x);
         if (height === undefined)
-            return;
-        rebuildColumn(x, y, height);
+            continue;
+        rebuildColumn(x, y, height, oldH);
         const ccx = (x / chunkSize) | 0;
         const ccy = (y / chunkSize) | 0;
         chunkState.dirtyChunks.add(`${ccx},${ccy}`);

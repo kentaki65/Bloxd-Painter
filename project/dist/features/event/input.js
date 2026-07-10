@@ -1,7 +1,8 @@
-import { mouseState, cameraState, brushState, mapState, sizeState } from "../../states/index.js";
+import { mouseState, cameraState, brushState, sizeState } from "../../states/index.js";
 import { undo, redo } from "../history/index.js";
 import { quickSave } from "../autosave/index.js";
 import { cellSize } from "../../core/constants.js";
+import { getHeight } from "../../states/index.js";
 export function initCanvasInput(canvas, el) {
     canvas.addEventListener("mousedown", (e) => {
         if (e.button === 0) {
@@ -10,8 +11,7 @@ export function initCanvasInput(canvas, el) {
                 const size = cellSize * cameraState.zoom;
                 const cellX = Math.floor((e.offsetX - cameraState.camX) / size);
                 const cellY = Math.floor((e.offsetY - cameraState.camY) / size);
-                const row = mapState.map?.[cellY];
-                brushState.targetHeight = row?.[cellX] ?? null;
+                brushState.targetHeight = getHeight(cellY, cellX) ?? null;
             }
         }
         if (e.button === 1) {
@@ -50,14 +50,15 @@ export function initCanvasInput(canvas, el) {
         const size = cellSize * cameraState.zoom;
         const cellX = Math.floor((mouseState.mouseX - cameraState.camX) / size);
         const cellY = Math.floor((mouseState.mouseY - cameraState.camY) / size);
+        const height = getHeight(cellY, cellX);
         if (cellX >= 0 &&
             cellY >= 0 &&
             cellX < sizeState.widthLength &&
-            cellY < sizeState.heightLength) {
+            cellY < sizeState.heightLength &&
+            height !== undefined) {
             el.locationBar.textContent = `Location: ${cellX}, ${cellY}`;
-            el.heightBar.textContent = `Height: ${Math.floor(mapState.map?.[cellY]?.[cellX] ?? 0)}/${sizeState.maxHeight}`;
+            el.heightBar.textContent = `Height: ${height}/${sizeState.maxHeight}`;
         }
-        // パン処理
         if (!cameraState.panning)
             return;
         const dx = e.clientX - cameraState.panStartX;

@@ -40,26 +40,27 @@ function rebuildHeight() {
     const blockMap = mapState.blockMap;
     const map = mapState.map;
     const topBlockMap = mapState.topBlockMap;
+    const width = sizeState.widthLength;
     for (let z = 0; z < sizeState.heightLength; z++) {
-        const mapRow = map[z];
         const topRow = topBlockMap[z];
-        if (!mapRow || !topRow)
+        if (!topRow)
             continue;
-        for (let x = 0; x < sizeState.widthLength; x++) {
+        const rowOffset = z * width;
+        for (let x = 0; x < width; x++) {
             let found = false;
             for (let y = sizeState.maxHeight - 1; y >= 0; y--) {
                 const layer = blockMap[y];
                 const layerRow = layer?.[z];
                 const blockId = layerRow?.[x];
                 if (blockId !== undefined && blockId !== 0) {
-                    mapRow[x] = y;
+                    map[rowOffset + x] = y;
                     topRow[x] = blockId;
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                mapRow[x] = 0;
+                map[rowOffset + x] = 0;
                 topRow[x] = null;
             }
         }

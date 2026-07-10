@@ -1,5 +1,5 @@
 import { getElement } from "../../core/utils.js";
-import { mapState } from "../../states/index.js";
+import { mapState, sizeState } from "../../states/index.js";
 import { showPopup } from "../UI/loading.js";
 import { redrawAllChunks } from "../chunk/index.js";
 import { downloadJSON, importJSON } from "../parser/index.js";
@@ -96,10 +96,14 @@ export function loadFromDB() {
 export async function quickSave() {
     if (!mapState.map || !mapState.topBlockMap || !mapState.layerMap)
         return;
+    const mapCopy = new Float32Array(mapState.map);
     const data = {
-        map: mapState.map,
+        map: mapCopy,
         topBlockMap: mapState.topBlockMap,
-        layerMap: mapState.layerMap
+        layerMap: mapState.layerMap,
+        chunkLenX: sizeState.chunkLenX,
+        chunkLenZ: sizeState.chunkLenZ,
+        maxHeight: sizeState.maxHeight,
     };
     await saveToDB(data);
     console.log("Auto Saved");

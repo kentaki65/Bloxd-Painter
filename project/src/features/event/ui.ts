@@ -1,13 +1,15 @@
 // features/event/ui.ts
 import { brushState, mapState, sizeState } from "../../states/index.js";
-import { resizeHeight, resizeMap, redrawAllChunks, applyWaterLevel } from "../chunk/index.js";
+import { resizeHeight, resizeMap, redrawAllChunks, applyWaterLevel, resizeMapEmpty } from "../chunk/index.js";
 import { writeBloxdSchem, downloadSchems, convertChunks, loadSchem, loadSchemAsWorld } from "../parser/index.js";
 import { blockColors } from "../../core/constants.js";
-import { create2D, create3D } from "../../core/utils.js";
 import { SelectedBlock, BrushMode } from "../../core/types.js";
 import { initMaps } from "../../states/init.js";
+import { redo, undo } from "../history/index.js";
 
 interface UiElements {
+  undoBtn: HTMLElement,
+  redoBtn: HTMLElement,
   modeBar: HTMLElement;
   layerBar: HTMLElement;
   selectBlockBar: HTMLElement;
@@ -26,13 +28,22 @@ interface UiElements {
   importInput: HTMLElement;
   fileInput: HTMLInputElement;
   fileNameInput: HTMLInputElement;
-  paletteSizeInput: HTMLInputElement;
+  paletteHeightInput: HTMLInputElement;
+  paletteWidthInput: HTMLInputElement;
   maxHeightInput: HTMLInputElement;
   waterLevelInput: HTMLInputElement;
   aboveEnabled: HTMLInputElement;
   belowEnabled: HTMLInputElement;
   brushModeButtons: HTMLElement[];
   blockModeButtons: HTMLElement[];
+  createWorldOverlay: HTMLElement;
+  createWorldConfirm: HTMLElement;
+  createWorldCancel: HTMLElement;
+  newFileNameInput: HTMLInputElement;
+  newChunkXInput: HTMLInputElement;
+  newChunkZInput: HTMLInputElement;
+  newMaxHeightInput: HTMLInputElement;
+  newWaterLevelInput: HTMLInputElement;
 }
 
 export function initUiEvents(el: UiElements): void {
@@ -98,6 +109,38 @@ export function initUiEvents(el: UiElements): void {
       });
     }
   });
+  
+  el.newFileInput.addEventListener("click", () => {
+    el.createWorldOverlay.classList.add("show");
+    el.createWorldOverlay.classList.remove("hidden");
+  });
+
+  el.createWorldCancel.addEventListener("click", () => {
+    el.createWorldOverlay.classList.remove("show");
+  });
+
+  el.createWorldConfirm.addEventListener("click", async () => {
+    const fileName = el.newFileNameInput.value || "schem";
+    const chunkX = parseInt(el.newChunkXInput.value) || 4;
+    const chunkZ = parseInt(el.newChunkZInput.value) || 4;
+    const maxHeight = parseInt(el.newMaxHeightInput.value) || 64;
+    const waterLevel = parseInt(el.newWaterLevelInput.value) || 0;
+
+    mapState.fileName = fileName;
+    sizeState.maxHeight = maxHeight;
+    mapState.waterLevel = waterLevel;
+
+    el.fileNameInput.value = fileName;
+    el.paletteHeightInput.value = String(chunkZ);
+    el.paletteWidthInput.value = String(chunkX);
+    el.maxHeightInput.value = String(maxHeight);
+    el.waterLevelInput.value = String(waterLevel);
+
+    await resizeMapEmpty(chunkX, chunkZ);
+    applyWaterLevel();
+
+    el.createWorldOverlay.classList.remove("show");
+  });
 
   el.newFileInput.addEventListener("click", () => {
     initMaps();
@@ -130,10 +173,18 @@ export function initUiEvents(el: UiElements): void {
     mapState.fileName = target.value;
   });
 
-  el.paletteSizeInput.addEventListener("input", async (e) => {
+  el.paletteHeightInput.addEventListener("input", async (e) => {
     const target = e.target as HTMLInputElement;
     const newSize = parseInt(target.value) || 8;
-    await resizeMap(newSize, newSize);
+    const otherSize = parseInt(el.paletteWidthInput.value);
+    await resizeMap(otherSize, newSize);
+  });
+
+  el.paletteWidthInput.addEventListener("input", async (e) => {
+    const target = e.target as HTMLInputElement;
+    const newSize = parseInt(target.value) || 8;
+    const otherSize = parseInt(el.paletteHeightInput.value);
+    await resizeMap(newSize, otherSize);
   });
 
   el.maxHeightInput.addEventListener("input", async (e) => {
@@ -159,4 +210,7 @@ export function initUiEvents(el: UiElements): void {
     const target = e.target as HTMLInputElement;
     brushState.rangeFilter.below.enabled = target.checked;
   });
+
+  el.undoBtn.addEventListener("click", undo);
+  el.redoBtn.addEventListener("click", redo);
 }

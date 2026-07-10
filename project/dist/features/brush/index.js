@@ -7,14 +7,15 @@ function normalBrush(cellX, cellY) {
     if (!mapState.map || !brushState.loadedBrushes)
         return;
     const r = brushState.brushRadius;
-    const changed = new Set();
+    const changed = new Map();
     const brushData = brushState.brushType !== "default"
         ? brushState.loadedBrushes[brushState.brushType] ?? null
         : null;
     const brushWidth = brushData?.[0]?.length ?? 0;
     const brushHeight = brushData?.length ?? 0;
     for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) {
+        const dxMax = Math.floor(Math.sqrt(r * r - dy * dy));
+        for (let dx = -dxMax; dx <= dxMax; dx++) {
             const x = cellX + dx;
             const y = cellY + dy;
             if (x < 0 || y < 0 || x >= sizeState.widthLength || y >= sizeState.heightLength)
@@ -55,7 +56,7 @@ function normalBrush(cellX, cellY) {
                 continue;
             recordChange(x, y, oldH, newH, "height");
             setHeight(y, x, newH);
-            changed.add(`${x},${y}`);
+            changed.set(`${x},${y}`, oldH);
             markDirty(x, y);
         }
     }
@@ -65,9 +66,10 @@ function smoothBrush(cellX, cellY) {
     if (!mapState.map)
         return;
     const r = brushState.brushRadius;
-    const changed = new Set();
+    const changed = new Map();
     for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) {
+        const dxMax = Math.floor(Math.sqrt(r * r - dy * dy));
+        for (let dx = -dxMax; dx <= dxMax; dx++) {
             const x = cellX + dx;
             const y = cellY + dy;
             if (x < 1 || y < 1 || x >= sizeState.widthLength - 1 || y >= sizeState.heightLength - 1)
@@ -86,13 +88,13 @@ function smoothBrush(cellX, cellY) {
             const newH = heightClamp(lerp(oldH, avg, strength));
             if (brushState.rangeFilter.above.enabled && newH < brushState.rangeFilter.above.input)
                 continue;
-            if (brushState.rangeFilter.below.enabled && newH > brushState.rangeFilter.above.input)
+            if (brushState.rangeFilter.below.enabled && newH > brushState.rangeFilter.below.input)
                 continue;
             if (oldH === newH)
                 continue;
             recordChange(x, y, oldH, newH, "height");
             setHeight(y, x, newH);
-            changed.add(`${x},${y}`);
+            changed.set(`${x},${y}`, oldH);
             markDirty(x, y);
         }
     }
@@ -128,7 +130,7 @@ function sprayBrush(cellX, cellY) {
             continue;
         recordChange(x, z, oldBlock, newBlock, "block");
         setTopBlock(z, x, newBlock);
-        rebuildColumn(x, z, h); // ← 追加
+        rebuildColumn(x, z, h);
         markDirty(x, z);
     }
 }
@@ -138,7 +140,8 @@ function layerBrush(cellX, cellY) {
     const r = brushState.brushRadius;
     const r2 = r * r;
     for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) {
+        const dxMax = Math.floor(Math.sqrt(r * r - dy * dy));
+        for (let dx = -dxMax; dx <= dxMax; dx++) {
             if (dx * dx + dy * dy > r2)
                 continue;
             const x = cellX + dx;
