@@ -35,6 +35,7 @@ export function eventInit(): void {
   initKeyboardShortcuts();
 
   initUiEvents({
+    intensity: getElement("intensity"),
     undoBtn: getElement("undo"), 
     redoBtn: getElement("redo"),
     modeBar: getElement("mode"),

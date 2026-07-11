@@ -5,6 +5,8 @@ import { writeBloxdSchem, downloadSchems, convertChunks, loadSchem, loadSchemAsW
 import { blockColors } from "../../core/constants.js";
 import { initMaps } from "../../states/init.js";
 import { redo, undo } from "../history/index.js";
+import { reinitBrushWorkerMap } from "../brush/workerBridge.js";
+import { reinitRenderWorkerMap } from "../render/renderBridge.js";
 export function initUiEvents(el) {
     function switchTab(activeTab, activeContent, tabs, contents) {
         tabs.forEach(tab => tab.classList.remove("tab--active"));
@@ -81,6 +83,8 @@ export function initUiEvents(el) {
         el.waterLevelInput.value = String(waterLevel);
         await resizeMapEmpty(chunkX, chunkZ);
         applyWaterLevel();
+        reinitBrushWorkerMap();
+        reinitRenderWorkerMap();
         el.createWorldOverlay.classList.remove("show");
     });
     el.newFileInput.addEventListener("click", () => {
@@ -140,6 +144,10 @@ export function initUiEvents(el) {
     el.belowEnabled.addEventListener("change", (e) => {
         const target = e.target;
         brushState.rangeFilter.below.enabled = target.checked;
+    });
+    el.intensity.addEventListener("change", (e) => {
+        const target = e.target;
+        brushState.intensity = target.valueAsNumber;
     });
     el.undoBtn.addEventListener("click", undo);
     el.redoBtn.addEventListener("click", redo);

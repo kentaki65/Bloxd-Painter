@@ -2,6 +2,7 @@
 import { showLoading, hideLoading } from "../UI/loading.js";
 import { brushState } from "../../states/index.js";
 import { BRUSH_IMAGE_PATH } from "../../core/constants.js";
+import { syncBrushImagesToWorker } from "./workerBridge.js";
 import type { LoadedBrushes, BrushLoadResult, BrushType } from "../../core/types.js";
 
 async function loadBrush(filename: string): Promise<BrushLoadResult> {
@@ -29,7 +30,7 @@ async function loadBrush(filename: string): Promise<BrushLoadResult> {
           const normalizedRows = normalized[y];
           if(!normalizedRows) continue;
 
-          normalizedRows[x] = 1 - r / 255;
+          normalizedRows[x] = r / 255;
         }
       }
       resolve({ filename, normalized });
@@ -74,6 +75,7 @@ export async function loadAllBrushes(
       });
     }
     brushState.loadedBrushes = loadedBrushes;
+    syncBrushImagesToWorker();
   } catch (e) {
     console.error("Brush load failed:", e);
   } finally {

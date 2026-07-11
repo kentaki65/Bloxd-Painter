@@ -28,7 +28,6 @@ export function initBrushWorker(): void {
       if (msg.changed.length > 0) {
         const c = msg.changed[0];
         const idx = c.y * sizeState.widthLength + c.x;
-        console.log("[bridge] verify shared memory", { expectedNewH: c.newH, actualInMainThreadMap: mapState.map?.[idx] });
       }
       applyBrushResult(msg.changed as ChangedCell[]);
       brushBusy = false;
@@ -36,6 +35,7 @@ export function initBrushWorker(): void {
   };
 
   sendMapToWorker();
+  syncBrushImagesToWorker();
 }
 
 export function reinitBrushWorkerMap(): void {
@@ -69,11 +69,12 @@ function applyBrushResult(changed: ChangedCell[]): void {
   applyColumnChanges(heightChanged);
   const t2 = performance.now();
 
-  console.log(`[perf] changed=${changed.length} recordChange=${(t1-t0).toFixed(1)}ms applyColumnChanges=${(t2-t1).toFixed(1)}ms`);
+  console.log(`[perf] changed=${changed.length} recordChange=${(t1-t0).toFixed(1)}ms applyColumnChanges=${(t2-t1).toFixed(1)}ms total=${(t2-t0).toFixed(1)}ms`);
 }
 
 export function applyBrushViaWorker(): void {
   if (!worker || brushBusy) return;
+  if (!brushState) return;
   if (!mouseState.leftDown && !mouseState.rightDown) return;
 
   const mode = brushState.mode;
@@ -91,7 +92,6 @@ export function applyBrushViaWorker(): void {
 
   const brushMode: "normal" | "smooth" = mode === "smooth" ? "smooth" : "normal";
   
-  console.log("[bridge] sending brush", { cellX, cellY, radius: brushState.brushRadius, brushMode, mapBufferByteLength: mapState.map?.buffer.byteLength });
   worker.postMessage({
     type: "applyBrush",
     brushMode,
@@ -105,10 +105,22 @@ export function applyBrushViaWorker(): void {
       rightDown: mouseState.rightDown,
       rangeFilter: brushState.rangeFilter,
       maxHeight: sizeState.maxHeight,
+      intensity: brushState.intensity,
+      threshold: brushState.threshold,
+      brushType: brushState.brushType,
     },
   });
 }
 
 export function isBrushWorkerBusy(): boolean {
   return brushBusy;
+}
+
+export function syncBrushImagesToWorker(): void {
+  if (!worker) return;
+
+  worker.postMessage({
+    type: "syncBrushImages",
+    loadedBrushes: brushState.loadedBrushes,
+  });
 }

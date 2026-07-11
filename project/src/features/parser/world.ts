@@ -4,6 +4,9 @@ import { chunkSize } from "../../core/constants.js";
 import { sizeState, mapState, getHeight, setBlock } from "../../states/index.js";
 import { create3D } from "../../core/utils.js";
 import { Bounds, ParsedResult, RawSchemInput, RawChunkData } from "../../core/types.js";
+import { getBlock } from "../../states/index.js";
+import { reinitBrushWorkerMap } from "../brush/workerBridge.js";
+import { reinitRenderWorkerMap } from "../render/renderBridge.js";
 
 function getMaxUsedHeight(): number {
   if(!mapState.map) return 0;
@@ -91,7 +94,10 @@ export async function loadSchemAsWorld(result: ParsedResult): Promise<void> {
 
   mapState.blockMap = create3D(sizeState.maxHeight, sizeState.heightLength, sizeState.widthLength, 0);
 
-  applyParsed(result, bounds);
+  applyParsed(result, bounds); // 内部でrebuildHeight()まで完了する
+
+  reinitBrushWorkerMap();
+  reinitRenderWorkerMap();
 }
 
 export function convertChunks(): RawSchemInput | undefined {
@@ -119,7 +125,7 @@ export function convertChunks(): RawSchemInput | undefined {
               let id = 0;
 
               if (wx < sizeState.widthLength && wz < sizeState.heightLength && wy < sizeState.maxHeight) {
-                const surfaceBlock = blockMap[wy]?.[wz]?.[wx];
+                const surfaceBlock = getBlock(wy, wz, wx);
                 if (surfaceBlock !== undefined && surfaceBlock !== 0) {
                   id = surfaceBlock;
                 }

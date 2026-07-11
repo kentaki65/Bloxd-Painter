@@ -70,6 +70,8 @@ export interface BrushState {
   brushType: BrushType,
 
   mode: BrushMode,
+	intensity: number,
+	threshold: number,
   targetHeight: number | null,
   selectedBlock: SelectedBlock,
   selectedLayer: SelectedLayer,

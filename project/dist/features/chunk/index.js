@@ -3,6 +3,7 @@ import { chunkSize } from "../../core/constants.js";
 import { resize2D, resize3D, create2D, create3D, createSharedFloat2D, resizeSharedFloat2D } from "../../core/utils.js";
 import { runLoading } from "../UI/loading.js";
 import { setBlock } from "../../states/index.js";
+import { syncRenderWorkerState } from "../render/renderBridge.js";
 export async function resizeMap(newChunkX, newChunkZ) {
     await runLoading(async () => {
         const oldChunkCanvas = chunkState.chunkCanvas;
@@ -104,21 +105,14 @@ export function rebuildColumn(x, y, height, oldHeight) {
         return;
     const maxH = sizeState.maxHeight;
     const safeTop = Math.min(maxH - 1, Math.floor(height));
-    const hasOld = oldHeight !== undefined;
-    const oldSafeTop = hasOld ? Math.min(maxH - 1, Math.floor(oldHeight)) : -1;
-    if (hasOld && oldSafeTop === safeTop)
+    if (oldHeight !== undefined && Math.floor(oldHeight) === safeTop)
         return;
     const topLayer = brushState.blockLayers[0];
     if (!topLayer)
         return;
-    const writeDownTo = !hasOld
-        ? 0
-        : safeTop > oldSafeTop
-            ? oldSafeTop + 1
-            : safeTop + 1;
     let layerIndex = 0;
     let remaining = topLayer.depth;
-    for (let yy = safeTop; yy >= writeDownTo; yy--) {
+    for (let yy = safeTop; yy >= 0; yy--) {
         if (remaining <= 0) {
             layerIndex++;
             remaining = brushState.blockLayers[layerIndex]?.depth ?? Infinity;
@@ -130,13 +124,7 @@ export function rebuildColumn(x, y, height, oldHeight) {
             continue;
         remaining--;
     }
-    const clearFrom = safeTop + 1;
-    const clearUpTo = !hasOld
-        ? maxH
-        : safeTop < oldSafeTop
-            ? oldSafeTop + 1
-            : clearFrom;
-    for (let yy = clearFrom; yy < clearUpTo; yy++) {
+    for (let yy = safeTop + 1; yy < maxH; yy++) {
         setBlock(yy, y, x, 0);
     }
     const override = tryGetTopBlock(y, x);
@@ -159,6 +147,7 @@ export function applyColumnChanges(changed) {
         const ccy = (y / chunkSize) | 0;
         chunkState.dirtyChunks.add(`${ccx},${ccy}`);
     }
+    syncRenderWorkerState();
 }
 export function markDirty(x, y) {
     const cx = (x / chunkSize) | 0;
@@ -201,5 +190,6 @@ export function applyWaterLevel() {
         }
     }
     redrawAllChunks();
+    syncRenderWorkerState();
 }
 //# sourceMappingURL=index.js.map

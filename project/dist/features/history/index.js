@@ -1,6 +1,7 @@
 import { stackState, mapState, sizeState } from "../../states/index.js";
 import { applyColumnChanges, markDirty } from "../chunk/index.js";
 import { setHeight } from "../../states/index.js";
+import { syncRenderWorkerState } from "../render/renderBridge.js";
 let heightMap = null;
 let blockMap = null;
 let layerMap = null;
@@ -68,6 +69,7 @@ export function undo() {
     if (heightChanged.size > 0) {
         applyColumnChanges(heightChanged);
     }
+    syncRenderWorkerState();
 }
 export function redo() {
     if (!mapState.map || !mapState.topBlockMap || !mapState.layerMap)
@@ -98,5 +100,6 @@ export function redo() {
     if (heightChanged.size > 0) {
         applyColumnChanges(heightChanged);
     }
+    syncRenderWorkerState();
 }
 //# sourceMappingURL=index.js.map

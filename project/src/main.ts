@@ -9,7 +9,7 @@ import { initDB, loadFromDB, autoSave } from "./features/autosave/index.js";
 import { redrawAllChunks, rebuildColumn, resizeMapEmpty, resizeHeightEmpty } from "./features/chunk/index.js";
 import { getElement, toSharedFloat32 } from "./core/utils.js";
 import { applyBrushViaWorker, initBrushWorker } from "./features/brush/workerBridge.js";
-
+import { initRenderWorker } from "./features/render/renderBridge.js";
 const canvas = getElement<HTMLCanvasElement>("canvas");
 
 window.addEventListener("mousedown", beginStroke);
@@ -57,10 +57,14 @@ async function main(): Promise<void> {
   redrawAllChunks();
 
   if (data) {
-    await resizeMapEmpty(data.chunkLenX, data.chunkLenZ);
-    sizeState.maxHeight = data.maxHeight;
+    const chunkLenX = data.chunkLenX ?? 4;
+    const chunkLenZ = data.chunkLenZ ?? 4;
+    const maxHeight = data.maxHeight ?? sizeState.maxHeight;
 
-    await resizeHeightEmpty(data.maxHeight);
+    await resizeMapEmpty(chunkLenX, chunkLenZ);
+    sizeState.maxHeight = maxHeight;
+    await resizeHeightEmpty(maxHeight);
+
     mapState.map = toSharedFloat32(data.map!);
     mapState.topBlockMap = data.topBlockMap;
     mapState.layerMap = data.layerMap;
@@ -69,7 +73,8 @@ async function main(): Promise<void> {
   }
 
   eventInit();
-  initBrushWorker();
+  initRenderWorker();
+  initBrushWorker(); 
   loop(0);
   autoSave();
 }

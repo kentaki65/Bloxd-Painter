@@ -6,8 +6,11 @@ import { blockColors } from "../../core/constants.js";
 import { SelectedBlock, BrushMode } from "../../core/types.js";
 import { initMaps } from "../../states/init.js";
 import { redo, undo } from "../history/index.js";
+import { reinitBrushWorkerMap } from "../brush/workerBridge.js";
+import { reinitRenderWorkerMap } from "../render/renderBridge.js";
 
 interface UiElements {
+  intensity: HTMLInputElement,
   undoBtn: HTMLElement,
   redoBtn: HTMLElement,
   modeBar: HTMLElement;
@@ -139,6 +142,9 @@ export function initUiEvents(el: UiElements): void {
     await resizeMapEmpty(chunkX, chunkZ);
     applyWaterLevel();
 
+    reinitBrushWorkerMap();
+    reinitRenderWorkerMap();
+
     el.createWorldOverlay.classList.remove("show");
   });
 
@@ -210,6 +216,11 @@ export function initUiEvents(el: UiElements): void {
     const target = e.target as HTMLInputElement;
     brushState.rangeFilter.below.enabled = target.checked;
   });
+
+  el.intensity.addEventListener("change", (e) => {
+    const target = e.target as HTMLInputElement;
+    brushState.intensity = target.valueAsNumber;
+  })
 
   el.undoBtn.addEventListener("click", undo);
   el.redoBtn.addEventListener("click", redo);

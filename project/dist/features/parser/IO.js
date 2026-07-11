@@ -4,6 +4,8 @@ import { resizeMap, resizeHeight, rebuildColumn, redrawAllChunks } from "../chun
 import { parse } from "./decode.js";
 import { createSharedFloat2D } from "../../core/utils.js";
 import { Buffer } from "https://esm.sh/buffer";
+import { reinitBrushWorkerMap } from "../brush/workerBridge.js";
+import { reinitRenderWorkerMap } from "../render/renderBridge.js";
 export async function downloadSchems(result) {
     const baseName = mapState.fileName || "schem";
     if (result.schems.length === 1) {
@@ -108,6 +110,8 @@ export function importJSON(file) {
             }
             chunkState.dirtyChunks.clear();
             redrawAllChunks();
+            reinitBrushWorkerMap();
+            reinitRenderWorkerMap();
             console.log("Loaded JSON");
         }
         catch (e) {

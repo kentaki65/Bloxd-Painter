@@ -49,7 +49,7 @@ export function initCanvasInput(canvas: HTMLCanvasElement, el: CanvasInputElemen
     }
 
     brushState.brushRadius += e.deltaY > 0 ? -2 : 2;
-    brushState.brushRadius = Math.max(1, Math.min(300, brushState.brushRadius));
+    brushState.brushRadius = Math.max(1, Math.min(200, brushState.brushRadius));
     el.brushSizeBar.textContent = `Size: ${brushState.brushRadius}`;
   });
 

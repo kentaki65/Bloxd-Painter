@@ -17,13 +17,13 @@ export function initBrushWorker() {
             if (msg.changed.length > 0) {
                 const c = msg.changed[0];
                 const idx = c.y * sizeState.widthLength + c.x;
-                console.log("[bridge] verify shared memory", { expectedNewH: c.newH, actualInMainThreadMap: mapState.map?.[idx] });
             }
             applyBrushResult(msg.changed);
             brushBusy = false;
         }
     };
     sendMapToWorker();
+    syncBrushImagesToWorker();
 }
 export function reinitBrushWorkerMap() {
     if (!worker || !mapState.map)
@@ -52,10 +52,12 @@ function applyBrushResult(changed) {
     const t1 = performance.now();
     applyColumnChanges(heightChanged);
     const t2 = performance.now();
-    console.log(`[perf] changed=${changed.length} recordChange=${(t1 - t0).toFixed(1)}ms applyColumnChanges=${(t2 - t1).toFixed(1)}ms`);
+    console.log(`[perf] changed=${changed.length} recordChange=${(t1 - t0).toFixed(1)}ms applyColumnChanges=${(t2 - t1).toFixed(1)}ms total=${(t2 - t0).toFixed(1)}ms`);
 }
 export function applyBrushViaWorker() {
     if (!worker || brushBusy)
+        return;
+    if (!brushState)
         return;
     if (!mouseState.leftDown && !mouseState.rightDown)
         return;
@@ -70,7 +72,6 @@ export function applyBrushViaWorker() {
         return;
     brushBusy = true;
     const brushMode = mode === "smooth" ? "smooth" : "normal";
-    console.log("[bridge] sending brush", { cellX, cellY, radius: brushState.brushRadius, brushMode, mapBufferByteLength: mapState.map?.buffer.byteLength });
     worker.postMessage({
         type: "applyBrush",
         brushMode,
@@ -84,10 +85,21 @@ export function applyBrushViaWorker() {
             rightDown: mouseState.rightDown,
             rangeFilter: brushState.rangeFilter,
             maxHeight: sizeState.maxHeight,
+            intensity: brushState.intensity,
+            threshold: brushState.threshold,
+            brushType: brushState.brushType,
         },
     });
 }
 export function isBrushWorkerBusy() {
     return brushBusy;
+}
+export function syncBrushImagesToWorker() {
+    if (!worker)
+        return;
+    worker.postMessage({
+        type: "syncBrushImages",
+        loadedBrushes: brushState.loadedBrushes,
+    });
 }
 //# sourceMappingURL=workerBridge.js.map

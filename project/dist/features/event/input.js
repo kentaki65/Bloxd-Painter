@@ -41,7 +41,7 @@ export function initCanvasInput(canvas, el) {
             return;
         }
         brushState.brushRadius += e.deltaY > 0 ? -2 : 2;
-        brushState.brushRadius = Math.max(1, Math.min(300, brushState.brushRadius));
+        brushState.brushRadius = Math.max(1, Math.min(200, brushState.brushRadius));
         el.brushSizeBar.textContent = `Size: ${brushState.brushRadius}`;
     });
     canvas.addEventListener("mousemove", (e) => {
@@ -57,7 +57,7 @@ export function initCanvasInput(canvas, el) {
             cellY < sizeState.heightLength &&
             height !== undefined) {
             el.locationBar.textContent = `Location: ${cellX}, ${cellY}`;
-            el.heightBar.textContent = `Height: ${height}/${sizeState.maxHeight}`;
+            el.heightBar.textContent = `Height: ${Math.floor(height)}/${sizeState.maxHeight}`;
         }
         if (!cameraState.panning)
             return;

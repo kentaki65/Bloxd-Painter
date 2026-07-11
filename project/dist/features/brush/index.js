@@ -1,105 +1,8 @@
-import { heightClamp, lerp } from "../../core/utils.js";
-import { sizeState, brushState, mouseState, mapState, cameraState, getTopBlock, getHeight, setTopBlock, setHeight, tryGetHeight, getLayer, setLayer } from "../../states/index.js";
+import { sizeState, brushState, mouseState, mapState, cameraState, getTopBlock, getHeight, setTopBlock, getLayer, setLayer } from "../../states/index.js";
 import { cellSize, nameToId } from "../../core/constants.js";
-import { applyColumnChanges, markDirty, rebuildColumn } from "../chunk/index.js";
+import { markDirty, rebuildColumn } from "../chunk/index.js";
 import { recordChange } from "../history/index.js";
-function normalBrush(cellX, cellY) {
-    if (!mapState.map || !brushState.loadedBrushes)
-        return;
-    const r = brushState.brushRadius;
-    const changed = new Map();
-    const brushData = brushState.brushType !== "default"
-        ? brushState.loadedBrushes[brushState.brushType] ?? null
-        : null;
-    const brushWidth = brushData?.[0]?.length ?? 0;
-    const brushHeight = brushData?.length ?? 0;
-    for (let dy = -r; dy <= r; dy++) {
-        const dxMax = Math.floor(Math.sqrt(r * r - dy * dy));
-        for (let dx = -dxMax; dx <= dxMax; dx++) {
-            const x = cellX + dx;
-            const y = cellY + dy;
-            if (x < 0 || y < 0 || x >= sizeState.widthLength || y >= sizeState.heightLength)
-                continue;
-            const distance = Math.hypot(dx, dy);
-            if (distance > r)
-                continue;
-            const oldH = getHeight(y, x);
-            if (oldH === undefined)
-                continue;
-            const normalized = Math.pow(1 - distance / r, 2);
-            let strength = normalized;
-            if (brushData) {
-                const imgX = Math.floor(((dx + r) / (2 * r)) * brushWidth);
-                const imgY = Math.floor(((dy + r) / (2 * r)) * brushHeight);
-                const brushStrength = brushData[imgY]?.[imgX] ?? 0;
-                strength *= brushStrength;
-            }
-            let newH = oldH;
-            if (mouseState.leftDown) {
-                if (brushState.mode === "flatten" && brushState.targetHeight !== null) {
-                    newH = heightClamp(lerp(oldH, brushState.targetHeight, 0.08 * strength));
-                }
-                else {
-                    newH = heightClamp(oldH + (r - distance) * 0.03 * strength);
-                }
-            }
-            else if (mouseState.rightDown) {
-                if (brushState.mode !== "flatten") {
-                    newH = heightClamp(oldH - (r - distance) * 0.03 * strength);
-                }
-            }
-            if (brushState.rangeFilter.above.enabled && newH < brushState.rangeFilter.above.input)
-                continue;
-            if (brushState.rangeFilter.below.enabled && newH > brushState.rangeFilter.below.input)
-                continue;
-            if (oldH === newH)
-                continue;
-            recordChange(x, y, oldH, newH, "height");
-            setHeight(y, x, newH);
-            changed.set(`${x},${y}`, oldH);
-            markDirty(x, y);
-        }
-    }
-    applyColumnChanges(changed);
-}
-function smoothBrush(cellX, cellY) {
-    if (!mapState.map)
-        return;
-    const r = brushState.brushRadius;
-    const changed = new Map();
-    for (let dy = -r; dy <= r; dy++) {
-        const dxMax = Math.floor(Math.sqrt(r * r - dy * dy));
-        for (let dx = -dxMax; dx <= dxMax; dx++) {
-            const x = cellX + dx;
-            const y = cellY + dy;
-            if (x < 1 || y < 1 || x >= sizeState.widthLength - 1 || y >= sizeState.heightLength - 1)
-                continue;
-            if (dx * dx + dy * dy > r * r)
-                continue;
-            const oldH = getHeight(y, x);
-            if (oldH === undefined)
-                continue;
-            const left = tryGetHeight(y, x - 1) ?? oldH;
-            const right = tryGetHeight(y, x + 1) ?? oldH;
-            const up = tryGetHeight(y - 1, x) ?? oldH;
-            const down = tryGetHeight(y + 1, x) ?? oldH;
-            const avg = (oldH + left + right + up + down) / 5;
-            const strength = 0.5 * (1 - (dx * dx + dy * dy) / (r * r));
-            const newH = heightClamp(lerp(oldH, avg, strength));
-            if (brushState.rangeFilter.above.enabled && newH < brushState.rangeFilter.above.input)
-                continue;
-            if (brushState.rangeFilter.below.enabled && newH > brushState.rangeFilter.below.input)
-                continue;
-            if (oldH === newH)
-                continue;
-            recordChange(x, y, oldH, newH, "height");
-            setHeight(y, x, newH);
-            changed.set(`${x},${y}`, oldH);
-            markDirty(x, y);
-        }
-    }
-    applyColumnChanges(changed);
-}
+import { syncRenderWorkerState } from "../render/renderBridge.js";
 function sprayBrush(cellX, cellY) {
     if (!mapState.topBlockMap || !mapState.map)
         return;
@@ -133,6 +36,7 @@ function sprayBrush(cellX, cellY) {
         rebuildColumn(x, z, h);
         markDirty(x, z);
     }
+    syncRenderWorkerState();
 }
 function layerBrush(cellX, cellY) {
     if (!mapState.layerMap || !mapState.map)
@@ -168,6 +72,7 @@ function layerBrush(cellX, cellY) {
             markDirty(x, y);
         }
     }
+    syncRenderWorkerState();
 }
 export function applyBrush() {
     const size = cellSize * cameraState.zoom;
@@ -181,17 +86,12 @@ export function applyBrush() {
     if (!mouseState.leftDown && !mouseState.rightDown)
         return;
     switch (brushState.mode) {
-        case "smooth":
-            smoothBrush(cellX, cellY);
-            break;
         case "sprayPaint":
             sprayBrush(cellX, cellY);
             break;
         case "layerPaint":
             layerBrush(cellX, cellY);
             break;
-        default:
-            normalBrush(cellX, cellY);
     }
 }
 //# sourceMappingURL=index.js.map

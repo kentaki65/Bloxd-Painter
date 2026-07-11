@@ -2,6 +2,8 @@ export const brushState = {
     brushRadius: 3,
     brushType: "default",
     mode: "height",
+    intensity: 0.1,
+    threshold: 0.001,
     selectedBlock: "Grass Block",
     selectedLayer: "layerPineForest",
     targetHeight: null,

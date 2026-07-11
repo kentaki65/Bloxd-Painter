@@ -5,6 +5,8 @@ import { parse } from "./decode.js";
 import { createSharedFloat2D } from "../../core/utils.js";
 import { WrittenSchems, ImportedJsonData, ParsedResult } from "../../core/types.js";
 import { Buffer } from "https://esm.sh/buffer";
+import { reinitBrushWorkerMap } from "../brush/workerBridge.js";
+import { reinitRenderWorkerMap } from "../render/renderBridge.js";
 
 export async function downloadSchems(result: WrittenSchems): Promise<void> {
   const baseName = mapState.fileName || "schem";
@@ -134,6 +136,9 @@ export function importJSON(file: File): void {
 
       chunkState.dirtyChunks.clear();
       redrawAllChunks();
+
+      reinitBrushWorkerMap();
+      reinitRenderWorkerMap();
 
       console.log("Loaded JSON");
     } catch (e) {

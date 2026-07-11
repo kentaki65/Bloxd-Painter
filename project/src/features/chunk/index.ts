@@ -3,6 +3,7 @@ import { chunkSize, LEAF_BLOCKS } from "../../core/constants.js";
 import { resize2D, resize3D, create2D, create3D, createSharedFloat2D, resizeSharedFloat2D } from "../../core/utils.js";
 import { runLoading } from "../UI/loading.js";
 import { setBlock, getBlock, getTopBlock } from "../../states/index.js";
+import { syncRenderWorkerState } from "../render/renderBridge.js";
 
 export async function resizeMap(newChunkX: number, newChunkZ: number) {
   await runLoading(async () => {
@@ -139,24 +140,15 @@ export function rebuildColumn(x: number, y: number, height: number, oldHeight?: 
   const maxH = sizeState.maxHeight;
   const safeTop = Math.min(maxH - 1, Math.floor(height));
 
-  const hasOld = oldHeight !== undefined;
-  const oldSafeTop = hasOld ? Math.min(maxH - 1, Math.floor(oldHeight!)) : -1;
-
-  if (hasOld && oldSafeTop === safeTop) return;
+  if (oldHeight !== undefined && Math.floor(oldHeight) === safeTop) return;
 
   const topLayer = brushState.blockLayers[0];
   if (!topLayer) return;
 
-  const writeDownTo = !hasOld
-    ? 0
-    : safeTop > oldSafeTop
-      ? oldSafeTop + 1
-      : safeTop + 1;
-
   let layerIndex = 0;
   let remaining = topLayer.depth;
 
-  for (let yy = safeTop; yy >= writeDownTo; yy--) {
+  for (let yy = safeTop; yy >= 0; yy--) {
     if (remaining <= 0) {
       layerIndex++;
       remaining = brushState.blockLayers[layerIndex]?.depth ?? Infinity;
@@ -169,14 +161,7 @@ export function rebuildColumn(x: number, y: number, height: number, oldHeight?: 
     remaining--;
   }
 
-  const clearFrom = safeTop + 1;
-  const clearUpTo = !hasOld
-    ? maxH
-    : safeTop < oldSafeTop
-      ? oldSafeTop + 1
-      : clearFrom;
-
-  for (let yy = clearFrom; yy < clearUpTo; yy++) {
+  for (let yy = safeTop + 1; yy < maxH; yy++) {
     setBlock(yy, y, x, 0);
   }
 
@@ -199,8 +184,10 @@ export function applyColumnChanges(changed: Map<string, number>): void {
     rebuildColumn(x, y, height, oldH);
     const ccx = (x / chunkSize) | 0;
     const ccy = (y / chunkSize) | 0;
+    
     chunkState.dirtyChunks.add(`${ccx},${ccy}`);
   }
+  syncRenderWorkerState();
 }
 
 export function markDirty(x: number, y: number) {
@@ -248,4 +235,5 @@ export function applyWaterLevel(): void {
     }
   }
   redrawAllChunks();
+  syncRenderWorkerState();
 }

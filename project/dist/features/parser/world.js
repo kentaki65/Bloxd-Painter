@@ -3,6 +3,9 @@ import { resizeHeightEmpty, resizeMapEmpty } from "../chunk/index.js";
 import { chunkSize } from "../../core/constants.js";
 import { sizeState, mapState, getHeight, setBlock } from "../../states/index.js";
 import { create3D } from "../../core/utils.js";
+import { getBlock } from "../../states/index.js";
+import { reinitBrushWorkerMap } from "../brush/workerBridge.js";
+import { reinitRenderWorkerMap } from "../render/renderBridge.js";
 function getMaxUsedHeight() {
     if (!mapState.map)
         return 0;
@@ -74,7 +77,9 @@ export async function loadSchemAsWorld(result) {
     await resizeMapEmpty(Math.ceil(width / chunkSize), Math.ceil(depth / chunkSize));
     await resizeHeightEmpty(height);
     mapState.blockMap = create3D(sizeState.maxHeight, sizeState.heightLength, sizeState.widthLength, 0);
-    applyParsed(result, bounds);
+    applyParsed(result, bounds); // 内部でrebuildHeight()まで完了する
+    reinitBrushWorkerMap();
+    reinitRenderWorkerMap();
 }
 export function convertChunks() {
     if (!mapState.blockMap)
@@ -97,7 +102,7 @@ export function convertChunks() {
                             const wy = cy * chunkSize + y;
                             let id = 0;
                             if (wx < sizeState.widthLength && wz < sizeState.heightLength && wy < sizeState.maxHeight) {
-                                const surfaceBlock = blockMap[wy]?.[wz]?.[wx];
+                                const surfaceBlock = getBlock(wy, wz, wx);
                                 if (surfaceBlock !== undefined && surfaceBlock !== 0) {
                                     id = surfaceBlock;
                                 }
