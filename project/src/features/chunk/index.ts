@@ -1,5 +1,5 @@
 import { chunkState, sizeState, brushState, mapState, getHeight, setHeight, tryGetTopBlock } from "../../states/index.js";
-import { chunkSize, LEAF_BLOCKS } from "../../core/constants.js";
+import { chunkSize } from "../../core/constants.js";
 import { resize2D, resize3D, create2D, create3D, createSharedFloat2D, resizeSharedFloat2D } from "../../core/utils.js";
 import { runLoading } from "../UI/loading.js";
 import { setBlock, getBlock, getTopBlock } from "../../states/index.js";

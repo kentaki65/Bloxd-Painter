@@ -1,18 +1,12 @@
 // src/features/render/render.worker.ts
-//
-// チャンクの描画計算(ImageData生成)を専任で行うWorker。
-// mapState.map (SharedArrayBuffer) はメインスレッドと共有し、
-// blockMap/topBlockMap/layerMap は init 時にコピーを受け取って保持する
-// (これらはブラシ操作のたびにメインスレッドから差分/全体を再送する必要がある)。
 
 interface WorkerState {
-  map: Float32Array | null;      // 高さ (SharedArrayBuffer, メインと共有)
+  map: Float32Array | null;
   width: number;
   height: number;
   maxHeight: number;
   waterLevel: number;
 
-  // 以下は現状SharedArrayBuffer化していないため、メインスレッドから都度同期を受け取る
   topBlockMap: (number | null)[][] | null;
   layerMap: (string | null)[][] | null;
   blockMap: number[][][] | null; // [y][z][x]
@@ -43,7 +37,7 @@ const state: WorkerState = {
   contour: 1,
 };
 
-const DEFAULT_COLOR = [255, 0, 255]; // 元のcore/constants.tsのDEFAULT_COLORに合わせてください
+const DEFAULT_COLOR = [255, 0, 255];
 
 function idx(x: number, y: number): number {
   return y * state.width + x;
@@ -98,7 +92,6 @@ interface ContourLine {
   x1: number; y1: number; x2: number; y2: number;
 }
 
-// 1チャンク分を計算し、拡大済みのImageBitmapを返す
 async function renderChunkToImageBitmap(cx: number, cy: number, cellSize: number, zoom: number): Promise<ImageBitmap | null> {
   const chunkSize = state.chunkSize;
   const startX = cx * chunkSize;
@@ -161,11 +154,7 @@ async function renderChunkToImageBitmap(cx: number, cy: number, cellSize: number
           const cr = c[0] ?? 0;
           const cg = c[1] ?? 0;
           const cb = c[2] ?? 0;
-          if (layer === state.selectedLayer) {
-            blendPixel(data, offset, 50, 255, 50, 0.5);
-          } else {
-            blendPixel(data, offset, cr, cg, cb, 0.35);
-          }
+          blendPixel(data, offset, cr, cg, cb, 0.6);
         }
       }
 
@@ -232,6 +221,7 @@ type SyncStateMsg = {
   blockMap?: number[][][];
   waterLevel?: number;
   selectedLayer?: string | null;
+  layerColors?: Partial<Record<string, number[]>>
 };
 
 type RenderChunkMsg = {
@@ -270,6 +260,7 @@ self.onmessage = async (e: MessageEvent<WorkerMessage>) => {
       if (msg.blockMap !== undefined) state.blockMap = msg.blockMap;
       if (msg.waterLevel !== undefined) state.waterLevel = msg.waterLevel;
       if (msg.selectedLayer !== undefined) state.selectedLayer = msg.selectedLayer;
+      if (msg.layerColors !== undefined) state.layerColors = Object.fromEntries(Object.entries(msg.layerColors).filter(([_, v]) => v !== undefined)) as Record<string, number[]>;
       break;
     }
 

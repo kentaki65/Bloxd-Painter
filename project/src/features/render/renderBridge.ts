@@ -1,6 +1,6 @@
 // src/features/render/renderBridge.ts
 import {
-  sizeState, mapState, chunkState, brushState,
+  sizeState, mapState, brushState,
 } from "../../states/index.js";
 import { cellSize, chunkSize, contour, blockColors, layerColors, idToName } from "../../core/constants.js";
 
@@ -59,8 +59,6 @@ export function syncRenderWorkerState(): void {
   if (!worker) return;
   if (!mapState.blockMap || !mapState.topBlockMap || !mapState.layerMap) return;
 
-  const t0 = performance.now();
-
   worker.postMessage({
     type: "syncState",
     topBlockMap: mapState.topBlockMap,
@@ -68,10 +66,8 @@ export function syncRenderWorkerState(): void {
     blockMap: mapState.blockMap,
     waterLevel: mapState.waterLevel,
     selectedLayer: brushState.selectedLayer,
+    layerColors
   });
-
-  const t1 = performance.now();
-  console.log(`[renderBridge] syncState postMessage=${(t1 - t0).toFixed(1)}ms`);
 }
 
 export function reinitRenderWorkerMap(): void {

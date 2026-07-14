@@ -67,3 +67,18 @@
   gap: 8px;
   margin-top: 10px;
 }
+
+.rulesList {
+  margin: 0 0 8px 0;
+  padding-left: 20px;
+  font-size: 0.85em;
+  color: #aaa;
+}
+.rulesList li {
+  margin-bottom: 2px;
+}
+.rulesList code {
+  background: #222;
+  padding: 1px 4px;
+  border-radius: 3px;
+}

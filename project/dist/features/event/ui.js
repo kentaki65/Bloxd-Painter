@@ -1,21 +1,28 @@
 // features/event/ui.ts
-import { brushState, mapState, sizeState } from "../../states/index.js";
+import { brushState, mapState, sizeState, schemState } from "../../states/index.js";
 import { resizeHeight, resizeMap, redrawAllChunks, applyWaterLevel, resizeMapEmpty } from "../chunk/index.js";
 import { writeBloxdSchem, downloadSchems, convertChunks, loadSchem, loadSchemAsWorld } from "../parser/index.js";
 import { blockColors } from "../../core/constants.js";
+import { layerColors } from "../../core/types.js";
 import { initMaps } from "../../states/init.js";
 import { redo, undo } from "../history/index.js";
 import { reinitBrushWorkerMap } from "../brush/workerBridge.js";
-import { reinitRenderWorkerMap } from "../render/renderBridge.js";
+import { reinitRenderWorkerMap, syncRenderWorkerState } from "../render/renderBridge.js";
+import { hexToRgb, parseJsonWithInfinity, validateBlockLayers } from "../../core/utils.js";
+import { addCustomLayer, getAllLayerNames, populateLayerSelect } from "../../states/customLayerState.js";
+import { renderLayerButtons } from "../UI/createLayerBtn.js";
+let pendingSchemFile = null;
 export function initUiEvents(el) {
+    const layerToolTypesEl = document.querySelector("#layerContent .toolTypes");
+    renderLayerButtons(layerToolTypesEl, layerColors);
     function switchTab(activeTab, activeContent, tabs, contents) {
         tabs.forEach(tab => tab.classList.remove("tab--active"));
         contents.forEach(content => content.classList.add("hidden"));
         activeTab.classList.add("tab--active");
         activeContent.classList.remove("hidden");
     }
-    const tabs = [el.terrainTab, el.advancedTab];
-    const contents = [el.terrainContent, el.advancedSetting];
+    const tabs = [el.terrainTab, el.advancedTab, el.layertab];
+    const contents = [el.terrainContent, el.advancedSetting, el.layerContent];
     const tabs2 = [el.brushTab, el.optionTab];
     const contents2 = [el.brushContent, el.optionsContent];
     el.terrainTab.addEventListener("click", () => {
@@ -25,6 +32,10 @@ export function initUiEvents(el) {
     el.advancedTab.addEventListener("click", () => {
         el.toolName.textContent = "advancedSetting";
         switchTab(el.advancedTab, el.advancedSetting, tabs, contents);
+    });
+    el.layertab.addEventListener("click", () => {
+        el.toolName.textContent = "layer";
+        switchTab(el.layertab, el.layerContent, tabs, contents);
     });
     el.brushTab.addEventListener("click", () => {
         el.toolName2.textContent = "Brushes";
@@ -90,6 +101,96 @@ export function initUiEvents(el) {
     el.newFileInput.addEventListener("click", () => {
         initMaps();
         redrawAllChunks();
+    });
+    el.editBlockLayer.addEventListener("click", e => {
+        el.editBlockLayerOverlay.classList.add("show");
+        el.editBlockLayerOverlay.classList.remove("hidden");
+    });
+    el.editBlockLayerCancel.addEventListener("click", e => {
+        el.editBlockLayerOverlay.classList.remove("show");
+    });
+    el.editBlockLayerConfirm.addEventListener("click", e => {
+        const value = el.jsonInput.value;
+        if (!value)
+            return;
+        try {
+            const json = parseJsonWithInfinity(value);
+            const errorMessages = validateBlockLayers(json);
+            if (errorMessages.length === 0) {
+                el.editBlockLayerOverlay.classList.remove("show");
+                el.errorlog.textContent = "";
+                brushState.blockLayers = json;
+            }
+            else {
+                el.errorlog.textContent = errorMessages.join("\n");
+            }
+        }
+        catch (e) {
+            el.errorlog.textContent = e?.message ?? "throwed error";
+        }
+    });
+    el.addLayer.addEventListener("click", () => {
+        el.loadSchemOverlay.classList.add("show");
+        el.loadSchemOverlay.classList.remove("hidden");
+    });
+    el.schemFileInput.addEventListener("change", () => {
+        pendingSchemFile = el.schemFileInput.files?.[0] ?? null;
+        el.schemErrorlog.textContent = "";
+    });
+    el.loadSchemConfirm.addEventListener("click", async () => {
+        if (!pendingSchemFile) {
+            el.schemErrorlog.textContent = "Please select a schematic file";
+            return;
+        }
+        const density = Number(el.schemDensityInput.value);
+        const minSpacing = Number(el.schemMinSpacingInput.value);
+        const targetLayer = el.schemTargetLayerSelect.value;
+        if (Number.isNaN(density) || density < 0 || density > 1) {
+            el.schemErrorlog.textContent = "Density must be between 0 and 1";
+            return;
+        }
+        if (Number.isNaN(minSpacing) || minSpacing < 1) {
+            el.schemErrorlog.textContent = "Min spacing must be at least 1";
+            return;
+        }
+        if (!targetLayer) {
+            el.schemErrorlog.textContent = "Please select a target layer";
+            return;
+        }
+        try {
+            const parsed = await loadSchem(pendingSchemFile);
+            schemState.selected = parsed;
+            schemState.settings.density = density;
+            schemState.settings.minSpacing = minSpacing;
+            schemState.settings.targetLayer = targetLayer;
+            el.schemErrorlog.textContent = "";
+            el.loadSchemOverlay.classList.remove("show");
+        }
+        catch (err) {
+            el.schemErrorlog.textContent = err?.message ?? "Failed to load schematic";
+        }
+        finally {
+            syncRenderWorkerState();
+        }
+    });
+    el.loadSchemCancel.addEventListener("click", () => {
+        el.loadSchemOverlay.classList.remove("show");
+    });
+    el.addLayerBtn.addEventListener("click", () => {
+        const name = el.newLayerNameInput.value;
+        const rgb = hexToRgb(el.newLayerColorInput.value);
+        const result = addCustomLayer(name, rgb);
+        if (!result.ok) {
+            el.schemErrorlog.textContent = result.reason ?? "Failed to add layer";
+            return;
+        }
+        el.newLayerNameInput.value = "";
+        el.schemErrorlog.textContent = "";
+        populateLayerSelect(el.schemTargetLayerSelect, getAllLayerNames());
+        const layerToolTypesEl = document.querySelector("#layerContent .toolTypes");
+        if (layerToolTypesEl) {
+            renderLayerButtons(layerToolTypesEl, layerColors);
+        }
     });
     el.exportInput.addEventListener("click", async () => {
         const json = convertChunks();

@@ -94,12 +94,10 @@ export function renderChunk(cx, cy) {
     const cellsH = endY - startY;
     if (cellsW <= 0 || cellsH <= 0)
         return;
-    // 1セル = 1ピクセルの小さいImageDataに直接書き込む
     const imgData = ctx.createImageData(cellsW, cellsH);
     const data = imgData.data;
     if (!mapState.map || !mapState.layerMap || !mapState.topBlockMap || !mapState.blockMap)
         return;
-    // 等高線の線分は少数のベクターなので、後段でCanvas APIのまま描く
     const contourLines = [];
     for (let y = startY; y < endY; y++) {
         const layerRow = mapState.layerMap[y];
@@ -143,7 +141,7 @@ export function renderChunk(cx, cy) {
                     const cg = c[1] ?? 0;
                     const cb = c[2] ?? 0;
                     if (layer === brushState.selectedLayer) {
-                        blendPixel(data, offset, 50, 255, 50, 0.5);
+                        blendPixel(data, offset, cr, cg, cb, 0.6);
                     }
                     else {
                         blendPixel(data, offset, cr, cg, cb, 0.35);
@@ -165,12 +163,9 @@ export function renderChunk(cx, cy) {
             }
         }
     }
-    // セル解像度のImageDataをオフスクリーンCanvasへ一括反映してから、
-    // 本チャンクCanvasへ最近傍補間(imageSmoothingEnabled=false)で拡大転写する
     const sCtx = getSmallCanvas(cellsW, cellsH);
     sCtx.putImageData(imgData, 0, 0);
     ctx.drawImage(sCtx.canvas, 0, 0, cellsW, cellsH, 0, 0, cellsW * size, cellsH * size);
-    // 等高線をベクターで描く(セル座標 → ピクセル座標に変換)
     if (contourLines.length > 0) {
         ctx.beginPath();
         for (const line of contourLines) {
@@ -196,8 +191,6 @@ export function draw(canvas) {
     const startChunkY = Math.max(0, Math.floor(-cameraState.camY / chunkPixel));
     const endChunkX = Math.min(chunkState.chunkCols, Math.ceil((canvas.width - cameraState.camX) / chunkPixel));
     const endChunkY = Math.min(chunkState.chunkRows, Math.ceil((canvas.height - cameraState.camY) / chunkPixel));
-    let sent = 0;
-    const t0 = performance.now();
     for (const key of chunkState.dirtyChunks) {
         const [cx, cy] = key.split(",").map(Number);
         if (cx === undefined || cy === undefined)
@@ -205,10 +198,6 @@ export function draw(canvas) {
         requestChunkRender(cx, cy, cameraState.zoom);
     }
     chunkState.dirtyChunks.clear();
-    const t1 = performance.now();
-    if (t1 - t0 > 4) {
-        console.log(`[draw] requestChunkRender dispatch took ${(t1 - t0).toFixed(1)}ms`);
-    }
     for (let cy = startChunkY; cy < endChunkY; cy++) {
         for (let cx = startChunkX; cx < endChunkX; cx++) {
             const bitmap = chunkBitmaps.get(`${cx},${cy}`);

@@ -37,6 +37,8 @@ export function eventInit() {
         selectBlockBar: getElement("selectBlock"),
         terrainTab: getElement("terraintab"),
         advancedTab: getElement("advancedtab"),
+        layertab: getElement("layertab"),
+        layerContent: getElement("layerContent"),
         terrainContent: getElement("terrainContent"),
         advancedSetting: getElement("advancedContent"),
         brushTab: getElement("brushestab"),
@@ -61,6 +63,7 @@ export function eventInit() {
             getElement("height"),
             getElement("flatten"),
             getElement("smooth"),
+            getElement("layerPaint")
         ],
         blockModeButtons: [
             ...blockIds.map(id => {
@@ -75,6 +78,24 @@ export function eventInit() {
         newChunkZInput: getElement("newChunkZ"),
         newMaxHeightInput: getElement("newMaxHeight"),
         newWaterLevelInput: getElement("newWaterLevel"),
+        editBlockLayer: getElement("editBlockLayer"),
+        editBlockLayerOverlay: getElement("editBlockLayerOverlay"),
+        jsonInput: getElement("jsonInput"),
+        editBlockLayerConfirm: getElement("editBlockLayerConfirm"),
+        editBlockLayerCancel: getElement("editBlockLayerCancel"),
+        errorlog: getElement("errorlog"),
+        loadSchemOverlay: getElement("loadSchemOverlay"),
+        schemFileInput: getElement("schemFileInput"),
+        schemDensityInput: getElement("schemDensityInput"),
+        schemMinSpacingInput: getElement("schemMinSpacingInput"),
+        schemErrorlog: getElement("schemErrorlog"),
+        loadSchemConfirm: getElement("loadSchemConfirm"),
+        loadSchemCancel: getElement("loadSchemCancel"),
+        addLayer: getElement("addLayer"),
+        addLayerBtn: getElement("addLayerBtn"),
+        newLayerNameInput: getElement("newLayerNameInput"),
+        newLayerColorInput: getElement("newLayerColorInput"),
+        schemTargetLayerSelect: getElement("schemTargetLayerSelect"),
     });
     loadAllBrushes(brushImages, getElement("brushUI"), getElement("brushType"));
 }

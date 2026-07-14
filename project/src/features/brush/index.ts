@@ -1,7 +1,6 @@
-import { heightClamp, lerp } from "../../core/utils.js";
-import { sizeState, brushState, mouseState, mapState, cameraState, getTopBlock, getHeight, setTopBlock, setHeight, tryGetHeight, getLayer, setLayer } from "../../states/index.js";
+import { sizeState, brushState, mouseState, mapState, cameraState, getTopBlock, getHeight, setTopBlock, getLayer, setLayer } from "../../states/index.js";
 import { cellSize, nameToId } from "../../core/constants.js";
-import { applyColumnChanges, markDirty, rebuildColumn } from "../chunk/index.js";
+import { markDirty, rebuildColumn } from "../chunk/index.js";
 import { recordChange } from "../history/index.js";
 import { syncRenderWorkerState } from "../render/renderBridge.js";
 
@@ -62,9 +61,12 @@ function layerBrush(cellX: number, cellY: number) {
       const oldLayer = getLayer(y, x);
       if(!oldLayer) continue;
       
-      const newLayer = mouseState.leftDown ? brushState.selectedLayer : null;
-      if(!newLayer) continue;
+      let newLayer: string | null;
 
+      if (mouseState.leftDown)  newLayer = brushState.selectedLayer;
+      else if (mouseState.rightDown)  newLayer = "none";
+      else continue;
+      
       const h = getHeight(y, x);
       if (h === undefined) continue;
 
@@ -78,7 +80,6 @@ function layerBrush(cellX: number, cellY: number) {
       markDirty(x, y);
     }
   }
-
   syncRenderWorkerState();
 }
 

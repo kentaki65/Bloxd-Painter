@@ -52,4 +52,88 @@ export function toSharedFloat32(source) {
     shared.set(source);
     return shared;
 }
+export function parseJsonWithInfinity(text) {
+    let result = "";
+    let inString = false;
+    let i = 0;
+    while (i < text.length) {
+        const ch = text[i];
+        if (inString) {
+            result += ch;
+            if (ch === "\\") {
+                result += text[i + 1] ?? "";
+                i += 2;
+                continue;
+            }
+            if (ch === '"')
+                inString = false;
+            i++;
+            continue;
+        }
+        if (ch === '"') {
+            inString = true;
+            result += ch;
+            i++;
+            continue;
+        }
+        if (text.startsWith("-Infinity", i)) {
+            result += "-1e400";
+            i += "-Infinity".length;
+            continue;
+        }
+        if (text.startsWith("Infinity", i)) {
+            result += "1e400";
+            i += "Infinity".length;
+            continue;
+        }
+        result += ch;
+        i++;
+    }
+    return JSON.parse(result);
+}
+export function validateBlockLayers(json) {
+    const errorMessages = [];
+    if (!Array.isArray(json)) {
+        return ["Incorrect format: expected an array"];
+    }
+    if (json.length === 0) {
+        return ["Incorrect format: array is empty"];
+    }
+    let prevDepth = -Infinity;
+    json.forEach((data, i) => {
+        const lineNo = i + 1;
+        if (typeof data !== "object" || data === null) {
+            errorMessages.push(`Line ${lineNo}: "depth" and "block" must be numbers`);
+            return;
+        }
+        const { depth, block } = data;
+        const depthOk = typeof depth === "number" &&
+            !Number.isNaN(depth) &&
+            (Number.isInteger(depth) || depth === Infinity) &&
+            depth > 0;
+        const blockOk = typeof block === "number" &&
+            Number.isInteger(block) &&
+            Number.isFinite(block);
+        if (!depthOk || !blockOk) {
+            errorMessages.push(`Line ${lineNo}: "depth" and "block" must be numbers`);
+            return;
+        }
+        if (depth <= prevDepth) {
+            errorMessages.push(`Line ${lineNo}: "depth" must be greater than the previous line`);
+        }
+        prevDepth = depth;
+    });
+    const last = json[json.length - 1];
+    if (last && last.depth !== Infinity) {
+        errorMessages.push(`The last layer's "depth" must be Infinity`);
+    }
+    return errorMessages;
+}
+export function hexToRgb(hex) {
+    const clean = hex.replace("#", "");
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    return [r, g, b];
+}
 //# sourceMappingURL=utils.js.map

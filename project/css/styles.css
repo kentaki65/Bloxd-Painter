@@ -65,12 +65,21 @@ canvas {
   align-items: center;
 }
 
+#addLayer {
+  margin-bottom: 10px;
+}
+
 .buttonStr {
   font-weight: bold;
 }
 
 .BlockButton {
   flex: 1 0 20%;
+}
+
+.LayerButton {
+  height: 40px;
+  min-width: 20%;
 }
 
 .viewer canvas{

@@ -43,6 +43,8 @@ export function eventInit(): void {
     selectBlockBar: getElement("selectBlock"),
     terrainTab: getElement("terraintab"),
     advancedTab: getElement("advancedtab"),
+    layertab: getElement("layertab"),
+    layerContent: getElement("layerContent"),
     terrainContent: getElement("terrainContent"),
     advancedSetting: getElement("advancedContent"),
     brushTab: getElement("brushestab"),
@@ -62,11 +64,13 @@ export function eventInit(): void {
     waterLevelInput: getElement<HTMLInputElement>("waterLevelHeight"),
     aboveEnabled: getElement<HTMLInputElement>("atOrAboveEnabled"),
     belowEnabled: getElement<HTMLInputElement>("atOrBelowEnabled"),
+
     brushModeButtons: [
       getElement("sprayPaint"),
       getElement("height"),
       getElement("flatten"),
       getElement("smooth"),
+      getElement("layerPaint")
     ],
     blockModeButtons: [
       ...blockIds.map(id => {
@@ -82,6 +86,27 @@ export function eventInit(): void {
     newChunkZInput: getElement<HTMLInputElement>("newChunkZ"),
     newMaxHeightInput: getElement<HTMLInputElement>("newMaxHeight"),
     newWaterLevelInput: getElement<HTMLInputElement>("newWaterLevel"),
+
+    editBlockLayer: getElement("editBlockLayer"),
+    editBlockLayerOverlay: getElement("editBlockLayerOverlay"),
+    jsonInput: getElement<HTMLInputElement>("jsonInput"),
+    editBlockLayerConfirm: getElement("editBlockLayerConfirm"),
+    editBlockLayerCancel: getElement("editBlockLayerCancel"),
+    errorlog: getElement("errorlog"),
+
+    loadSchemOverlay: getElement("loadSchemOverlay"),
+    schemFileInput: getElement<HTMLInputElement>("schemFileInput"),
+    schemDensityInput: getElement<HTMLInputElement>("schemDensityInput"),
+    schemMinSpacingInput: getElement<HTMLInputElement>("schemMinSpacingInput"),
+    schemErrorlog: getElement("schemErrorlog"),
+    loadSchemConfirm: getElement("loadSchemConfirm"),
+    loadSchemCancel: getElement("loadSchemCancel"),
+
+    addLayer: getElement("addLayer"),
+    addLayerBtn: getElement("addLayerBtn"),
+    newLayerNameInput: getElement<HTMLInputElement>("newLayerNameInput"),
+    newLayerColorInput: getElement<HTMLInputElement>("newLayerColorInput"),
+    schemTargetLayerSelect: getElement("schemTargetLayerSelect"),
   });
 
   loadAllBrushes(brushImages, getElement("brushUI"), getElement("brushType"));

@@ -6,7 +6,6 @@ export type LoadedBrushes = Record<string, number[][]>;
 export type ChangeType = "height" | "block" | "layer";
 export type Stroke = Change[];
 
-
 export type FilterObj = {
   above: FilterValue,
   below: FilterValue,
@@ -25,6 +24,16 @@ export interface FilterValue {
 export interface LayerStruct {
   depth: number,
   block: number,
+}
+
+export interface SchemStampSettings {
+  density: number;
+  minSpacing: number;
+}
+
+export interface SchemState {
+  selected: ParsedResult | null;
+  settings: SchemStampSettings;
 }
 
 export interface BrushLoadResult {
@@ -133,6 +142,13 @@ export interface ParsedResult {
   name: string;
   size: [number, number, number];
   blocks: WorldBlock[];
+}
+
+export interface StampOptions {
+  minSpacing: number;
+  density: number;
+  schem: ParsedResult;
+  targetLayer: string;
 }
 
 export interface Bounds {
@@ -2291,7 +2307,7 @@ export const idToName = Object.fromEntries(
   Object.entries(nameToId).map(([key, value]) => [value, key])
 ) as Record<number, SelectedBlock>;
 
-export const layerColors: Partial<Record<string, number[]>> = { //メイプル、桜なども
+export const layerColors: Partial<Record<string, number[]>> = {
   "layerOakForest": [30,90,40],
   "layerPineForest": [40,110,50],
 };

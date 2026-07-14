@@ -55,8 +55,12 @@ function layerBrush(cellX, cellY) {
             const oldLayer = getLayer(y, x);
             if (!oldLayer)
                 continue;
-            const newLayer = mouseState.leftDown ? brushState.selectedLayer : null;
-            if (!newLayer)
+            let newLayer;
+            if (mouseState.leftDown)
+                newLayer = brushState.selectedLayer;
+            else if (mouseState.rightDown)
+                newLayer = "none";
+            else
                 continue;
             const h = getHeight(y, x);
             if (h === undefined)

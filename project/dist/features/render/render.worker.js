@@ -1,9 +1,4 @@
 // src/features/render/render.worker.ts
-//
-// チャンクの描画計算(ImageData生成)を専任で行うWorker。
-// mapState.map (SharedArrayBuffer) はメインスレッドと共有し、
-// blockMap/topBlockMap/layerMap は init 時にコピーを受け取って保持する
-// (これらはブラシ操作のたびにメインスレッドから差分/全体を再送する必要がある)。
 const state = {
     map: null,
     width: 0,
@@ -20,7 +15,7 @@ const state = {
     chunkSize: 32,
     contour: 1,
 };
-const DEFAULT_COLOR = [255, 0, 255]; // 元のcore/constants.tsのDEFAULT_COLORに合わせてください
+const DEFAULT_COLOR = [255, 0, 255];
 function idx(x, y) {
     return y * state.width + x;
 }
@@ -61,7 +56,6 @@ function blendPixel(data, offset, r, g, b, alpha) {
     data[offset + 2] = (data[offset + 2] ?? 0) * inv + b * alpha;
     data[offset + 3] = 255;
 }
-// 1チャンク分を計算し、拡大済みのImageBitmapを返す
 async function renderChunkToImageBitmap(cx, cy, cellSize, zoom) {
     const chunkSize = state.chunkSize;
     const startX = cx * chunkSize;
@@ -112,12 +106,7 @@ async function renderChunkToImageBitmap(cx, cy, cellSize, zoom) {
                     const cr = c[0] ?? 0;
                     const cg = c[1] ?? 0;
                     const cb = c[2] ?? 0;
-                    if (layer === state.selectedLayer) {
-                        blendPixel(data, offset, 50, 255, 50, 0.5);
-                    }
-                    else {
-                        blendPixel(data, offset, cr, cg, cb, 0.35);
-                    }
+                    blendPixel(data, offset, cr, cg, cb, 0.6);
                 }
             }
             const level = (h / state.contour) | 0;
@@ -185,6 +174,8 @@ self.onmessage = async (e) => {
                 state.waterLevel = msg.waterLevel;
             if (msg.selectedLayer !== undefined)
                 state.selectedLayer = msg.selectedLayer;
+            if (msg.layerColors !== undefined)
+                state.layerColors = Object.fromEntries(Object.entries(msg.layerColors).filter(([_, v]) => v !== undefined));
             break;
         }
         case "renderChunk": {

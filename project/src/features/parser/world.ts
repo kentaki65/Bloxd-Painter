@@ -94,17 +94,13 @@ export async function loadSchemAsWorld(result: ParsedResult): Promise<void> {
 
   mapState.blockMap = create3D(sizeState.maxHeight, sizeState.heightLength, sizeState.widthLength, 0);
 
-  applyParsed(result, bounds); // 内部でrebuildHeight()まで完了する
+  applyParsed(result, bounds);
 
   reinitBrushWorkerMap();
   reinitRenderWorkerMap();
 }
 
 export function convertChunks(): RawSchemInput | undefined {
-  if (!mapState.blockMap) return undefined;
-
-  const blockMap = mapState.blockMap;
-
   const chunks: RawChunkData[] = [];
   const chunkCountX = sizeState.chunkLenX;
   const chunkCountZ = sizeState.chunkLenZ;

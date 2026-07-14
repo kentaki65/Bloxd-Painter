@@ -61,20 +61,86 @@
       </div>
     </div>
   </div>
+  <div class="modalOverlay hidden" id="editBlockLayerOverlay">
+    <div class="modal" id="editBlockLayerModal">
+      <div class="modalTitle">Edit BlockLayer</div>
+      <div class="field">
+        <ul class="rulesList">
+          <li>Must be a non-empty array</li>
+          <li>Each item must have <code>depth</code> and <code>block</code></li>
+          <li><code>depth</code> must be a positive integer, or <code>Infinity</code></li>
+          <li><code>block</code> must be a finite integer (no <code>Infinity</code>)</li>
+          <li><code>depth</code> values must strictly increase from top to bottom</li>
+          <li>The last layer's <code>depth</code> must be <code>Infinity</code></li>
+        </ul>
+      </div>
+      <a href="https://bloxdfc.pages.dev/items/">Please check the block ID here</a>
+      <div class="field">
+        <textarea id="jsonInput" rows="10" cols="50" placeholder="Please paste the JSON" spellcheck="false"></textarea>
+      </div>
+      <pre id="errorlog"></pre>
+      <div class="modalButtons">
+        <button type="button" id="editBlockLayerConfirm">Create</button>
+        <button type="button" id="editBlockLayerCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <div class="modalOverlay hidden" id="loadSchemOverlay">
+    <div class="modal" id="loadSchemModal">
+      <div class="modalTitle">Load Schematic</div>
+
+      <div class="field">
+        <label for="schemFileInput">Schematic file</label>
+        <input type="file" id="schemFileInput" accept=".bloxdschem" />
+      </div>
+
+      <div class="field">
+        <label for="schemDensityInput">Density (0–1)</label>
+        <input type="number" id="schemDensityInput" min="0" max="1" step="0.05" value="0.5" />
+      </div>
+
+      <div class="field">
+        <label for="schemMinSpacingInput">Min spacing</label>
+        <input type="number" id="schemMinSpacingInput" min="1" step="1" value="5" />
+      </div>
+
+      <div class="field">
+        <label for="newLayerNameInput">New layer name</label>
+        <input type="text" id="newLayerNameInput" placeholder="e.g. layerBirchForest" />
+      </div>
+
+      <div class="field">
+        <label for="newLayerColorInput">Color</label>
+        <input type="color" id="newLayerColorInput" value="#3c6428" />
+      </div>
+      
+      <div class="field">
+        <button type="button" id="addLayerBtn">Add layer</button>
+      </div>
+
+      <div class="field">
+        <label for="schemTargetLayerSelect">Target layer</label>
+        <select id="schemTargetLayerSelect"></select>
+      </div>
+
+      <div id="schemErrorlog"></div>
+
+      <div class="modalButtons">
+        <button type="button" id="loadSchemConfirm">Create</button>
+        <button type="button" id="loadSchemCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
   <div class="screen">
     <div class="dropdown">
       <div class="option">
         <div class="nameLabel">file</div>
         <div class="dropdownMenu">
           <button type="button" class="dropdownButton" id="newFile">new palette</button>
-
           <button type="button" class="attached" id="openFile">open json</button>
           <input type="file" class="hidden" id="stateInput" accept=".json" />
-
           <button type="button" class="attached" id="saveFile">save json</button>
-
           <button type="button" class="attached" id="exportFile">export file</button>
-
           <button type="button" class="attached" id="importInput">import schematic</button>
           <input type="file" class="hidden" id="schemInput" accept=".bloxdschem" />         
         </div>
@@ -84,6 +150,7 @@
         <div class="dropdownMenu">
           <button type="button" class="dropdownButton" id="undo">undo</button>
           <button type="button" class="dropdownButton" id="redo">redo</button>
+          <button type="button" class="dropdownButton" id="editBlockLayer">edit blocklayer</button>
         </div>
       </div>
       <div class="option">
@@ -101,7 +168,7 @@
           <button class="Button" title="spray paint: spray paint any terrain. layer or biome onto the world" id="sprayPaint">
             <i class="fa-solid fa-spray-can"></i>
           </button>
-          <button class="Button" title="height: raise or lower the terrain" id="height">
+          <button class="Button active" title="height: raise or lower the terrain" id="height">
             <div class="buttonStr">⇅</div>
           </button>
           <button class="Button" title="flatten: flatten an area" id="flatten">
@@ -110,22 +177,17 @@
           <button class="Button" title="smooth: smooth the terrain out" id="smooth">
             <div class="buttonStr">⤵</div>
           </button>
-          <!-- 
-          sorry! I haven't finished completing it yet!
           <button class="Button" id="layerPaint">
             <i class="fa-solid fa-layer-group"></i>
           </button> 
-          -->
         </div>
         <div class="toolBox">
           <div class="toolTabs">
-            <!--
-            <div class="tab">
-              <button type="button" id="layertab">Layers</button>
-            </div>
-            -->
             <div class="tab">
               <button type="button" id="terraintab">Terrain</button>
+            </div>
+            <div class="tab">
+              <button type="button" id="layertab">Layer</button>
             </div>
             <div class="tab">
               <button type="button" id="advancedtab">Advanced Setting</button>
@@ -133,15 +195,12 @@
           </div>
           <div class="toolColumn">
             <div class="toolName" id="toolName">Terrain</div>
-            <!--
-            <div class="columnWrap" id="layerContent">
+            <div class="columnWrap hidden" id="layerContent">
+              <button type="button" id="addLayer">add layer</button>
               <div class="toolContent">
-                <div class="toolTypes">
-                  <button type="button">Forest</button>
-                </div>
+                <div class="toolTypes"></div>
               </div>
             </div> 
-            -->
             <div class="columnWrap" id="terrainContent">
               <div class="toolContent">
                 <div class="toolTypes">

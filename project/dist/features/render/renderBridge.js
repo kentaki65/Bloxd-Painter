@@ -50,7 +50,6 @@ export function syncRenderWorkerState() {
         return;
     if (!mapState.blockMap || !mapState.topBlockMap || !mapState.layerMap)
         return;
-    const t0 = performance.now();
     worker.postMessage({
         type: "syncState",
         topBlockMap: mapState.topBlockMap,
@@ -58,9 +57,8 @@ export function syncRenderWorkerState() {
         blockMap: mapState.blockMap,
         waterLevel: mapState.waterLevel,
         selectedLayer: brushState.selectedLayer,
+        layerColors
     });
-    const t1 = performance.now();
-    console.log(`[renderBridge] syncState postMessage=${(t1 - t0).toFixed(1)}ms`);
 }
 export function reinitRenderWorkerMap() {
     if (!worker)

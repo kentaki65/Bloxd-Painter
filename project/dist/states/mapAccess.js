@@ -9,7 +9,7 @@ function warnMissing(label, z, x, reason) {
     else
         console.warn(`[${label}] missing at z=${z}, x=${x} (${reason})`);
 }
-function inBounds(z, x) {
+export function inBounds(z, x) {
     return (x >= 0 && x < sizeState.widthLength &&
         z >= 0 && z < sizeState.heightLength);
 }

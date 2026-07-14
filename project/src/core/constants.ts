@@ -1,7 +1,7 @@
 import { SelectedBlock } from "./types.js";
 
 export const chunkSize = 32; //チャンクの縦/横幅
-export const cellSize = 10; //なにこれ
+export const cellSize = 10;
 export const contour = 10; //contorごとに等高線が引かれる
 
 export const DEFAULT_COLOR = [255, 0, 255]; //ブロックが見つからなかった時のデフォルトカラー
@@ -22,13 +22,5 @@ export const blockColors: Partial<Record<SelectedBlock, number[]>> = {
   "Snow": [240, 240, 240],
   "Water": [135, 206, 235],
 };
-
-export const LEAF_BLOCKS = new Set([
-  100,101,102,103,
-  208,209,210,211,
-  491,492,493,
-  494,495,496,
-  1259,2019,2020,2021,2022,2023,2024,2025
-]);
 
 export * from "./types.js"
