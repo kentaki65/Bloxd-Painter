@@ -1,6 +1,6 @@
 import { mapState, sizeState } from "./index.js";
 const test = false;
-const LOGOFF = false;
+const LOGOFF = true;
 function warnMissing(label, z, x, reason) {
     if (LOGOFF)
         return;
