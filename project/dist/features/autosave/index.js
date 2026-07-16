@@ -47,13 +47,18 @@ document.addEventListener("keydown", (e) => {
 });
 export function initDB() {
     return new Promise((resolve, reject) => {
-        const req = indexedDB.open("terrainDB", 1);
+        const req = indexedDB.open("terrainDB", 2);
         req.onupgradeneeded = (e) => {
             const target = e.target;
             if (!target)
                 return;
             const database = target.result;
-            database.createObjectStore("saves", { keyPath: "id" });
+            if (!database.objectStoreNames.contains("saves")) {
+                database.createObjectStore("saves", { keyPath: "id" });
+            }
+            if (!database.objectStoreNames.contains("layers")) {
+                database.createObjectStore("layers", { keyPath: "name" });
+            }
         };
         req.onsuccess = () => {
             db = req.result;
@@ -112,5 +117,38 @@ export function autoSave() {
     setInterval(async () => {
         await quickSave();
     }, 60000);
+}
+export function saveLayerToDB(record) {
+    return new Promise((resolve, reject) => {
+        if (!db)
+            return reject(new Error("DB not initialized"));
+        const tx = db.transaction("layers", "readwrite");
+        const store = tx.objectStore("layers");
+        store.put(record);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+export function deleteLayerFromDB(name) {
+    return new Promise((resolve, reject) => {
+        if (!db)
+            return reject(new Error("DB not initialized"));
+        const tx = db.transaction("layers", "readwrite");
+        const store = tx.objectStore("layers");
+        store.delete(name);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+export function loadAllLayersFromDB() {
+    return new Promise((resolve, reject) => {
+        if (!db)
+            return reject(new Error("DB not initialized"));
+        const tx = db.transaction("layers", "readonly");
+        const store = tx.objectStore("layers");
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
 }
 //# sourceMappingURL=index.js.map

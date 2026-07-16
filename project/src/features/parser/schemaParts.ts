@@ -1,21 +1,25 @@
 import { sizeState, mapState, getLayer, inBounds, getHeight } from "../../states/index.js";
 import type { StampOptions, WorldBlock, ParsedResult } from "../../core/types.js";
-import { getBounds } from "./decode.js";
-
-function collectPaintedCells(targetLayer: string): { x: number; z: number }[] {
-  const cells: { x: number; z: number }[] = [];
-  for (let z = 0; z < sizeState.heightLength; z++) {
-    for (let x = 0; x < sizeState.widthLength; x++) {
-      if (getLayer(z, x) === targetLayer) {
-        cells.push({ x, z });
-      }
-    }
-  }
-  return cells;
-}
+const POISSON_K = 30;
 
 function cloneBlockMap(blockMap: number[][][]): number[][][] {
   return blockMap.map(layer => layer.map(row => [...row]));
+}
+
+function getRootAnchor(blocks: WorldBlock[]): { dx: number; dz: number; minY: number } {
+  let minY = Infinity;
+  let anchorDx = 0;
+  let anchorDz = 0;
+
+  for (const b of blocks) {
+    if (b.y < minY) {
+      minY = b.y;
+      anchorDx = b.x;
+      anchorDz = b.z;
+    }
+  }
+
+  return { dx: anchorDx, dz: anchorDz, minY };
 }
 
 function setBlockOn(
@@ -29,7 +33,8 @@ function setBlockOn(
   row[x] = value;
 }
 
-function exportWithStamps(targetLayer: string, options: StampOptions): number[][][] {
+export function exportWithStamps(targetLayer: string, options: StampOptions): number[][][] {
+  if (!mapState.blockMap) throw new Error("blockMap is not initialized");
   const clonedBlockMap = cloneBlockMap(mapState.blockMap!);
   const stampedBlocks = stampSchemOnLayer(options);
 
@@ -42,23 +47,85 @@ function exportWithStamps(targetLayer: string, options: StampOptions): number[][
 
 function pickStampOrigins(options: StampOptions): { x: number; z: number }[] {
   const { minSpacing, density } = options;
-  const origins: { x: number; z: number }[] = [];
+  const points = poissonDiskSample(sizeState.widthLength, sizeState.heightLength, minSpacing);
+ 
+  const origins = points.filter(() => Math.random() < density);
+ 
+  return origins.filter(({ x, z }) => inBounds(z, x));
+}
 
-  for (let z = 0; z < sizeState.heightLength; z += minSpacing) {
-    for (let x = 0; x < sizeState.widthLength; x += minSpacing) {
-      if (Math.random() > density) continue;
+function poissonDiskSample(
+  width: number, height: number, minDist: number
+): { x: number; z: number }[] {
+  const cellSize = minDist / Math.SQRT2;
+  const gridW = Math.ceil(width / cellSize);
+  const gridH = Math.ceil(height / cellSize);
+  const grid: ({ x: number; z: number } | null)[] = new Array(gridW * gridH).fill(null);
 
-      const jitterX = Math.floor((Math.random() - 0.5) * minSpacing);
-      const jitterZ = Math.floor((Math.random() - 0.5) * minSpacing);
-      const px = x + jitterX;
-      const pz = z + jitterZ;
+  const points: { x: number; z: number }[] = [];
+  const active: { x: number; z: number }[] = [];
 
-      if (!inBounds(pz, px)) continue;
-      origins.push({ x: px, z: pz });
+  const gridIndex = (x: number, z: number) => {
+    const gx = Math.floor(x / cellSize);
+    const gz = Math.floor(z / cellSize);
+    return gz * gridW + gx;
+  };
+
+  const isFarEnough = (x: number, z: number): boolean => {
+    const gx = Math.floor(x / cellSize);
+    const gz = Math.floor(z / cellSize);
+
+    for (let dz = -2; dz <= 2; dz++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        const nx = gx + dx;
+        const nz = gz + dz;
+        if (nx < 0 || nz < 0 || nx >= gridW || nz >= gridH) continue;
+
+        const neighbor = grid[nz * gridW + nx];
+        if (!neighbor) continue;
+
+        const ddx = neighbor.x - x;
+        const ddz = neighbor.z - z;
+        if (ddx * ddx + ddz * ddz < minDist * minDist) return false;
+      }
+    }
+    return true;
+  };
+
+  const addPoint = (x: number, z: number) => {
+    const p = { x, z };
+    points.push(p);
+    active.push(p);
+    grid[gridIndex(x, z)] = p;
+  };
+
+  addPoint(Math.random() * width, Math.random() * height);
+
+  while (active.length > 0) {
+    const idx = Math.floor(Math.random() * active.length);
+    const base = active[idx]!;
+    let found = false;
+
+    for (let i = 0; i < POISSON_K; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = minDist * (1 + Math.random()); // [minDist, 2*minDist)
+      const nx = base.x + Math.cos(angle) * radius;
+      const nz = base.z + Math.sin(angle) * radius;
+
+      if (nx < 0 || nz < 0 || nx >= width || nz >= height) continue;
+      if (!isFarEnough(nx, nz)) continue;
+
+      addPoint(nx, nz);
+      found = true;
+      break;
+    }
+
+    if (!found) {
+      active.splice(idx, 1);
     }
   }
 
-  return origins;
+  return points.map(p => ({ x: Math.floor(p.x), z: Math.floor(p.z) }));
 }
 
 function fitsWithinLayer(
@@ -69,8 +136,9 @@ function fitsWithinLayer(
   for (const { dx, dz } of footprintCells) {
     const x = originX + dx;
     const z = originZ + dz;
+    const layer = getLayer(z, x);
     if (!inBounds(z, x)) return false;
-    if (getLayer(z, x) !== targetLayer) return false;
+    if (layer !== targetLayer) return false;
   }
   return true;
 }
@@ -89,14 +157,19 @@ function getFootprint(blocks: WorldBlock[]): { dx: number; dz: number }[] {
 
 function stampAt(
   originX: number, originZ: number,
-  schem: ParsedResult, minY: number
+  schem: ParsedResult, anchor: { dx: number; dz: number; minY: number }
 ): WorldBlock[] {
-  const groundY = getHeight(originZ, originX);
+  const anchorWorldX = originX + anchor.dx;
+  const anchorWorldZ = originZ + anchor.dz;
+
+  const groundY = getHeight(anchorWorldZ, anchorWorldX);
   if (groundY === undefined) return [];
+
+  const groundYInt = Math.round(groundY);
 
   return schem.blocks.map(b => ({
     x: originX + b.x,
-    y: groundY + (b.y - minY),
+    y: groundYInt + (b.y - anchor.minY),
     z: originZ + b.z,
     id: b.id,
   }));
@@ -104,7 +177,7 @@ function stampAt(
 
 export function stampSchemOnLayer(options: StampOptions): WorldBlock[] {
   const { schem, targetLayer } = options;
-  const { minY } = getBounds(schem.blocks);
+  const anchor = getRootAnchor(schem.blocks);
   const footprint = getFootprint(schem.blocks);
 
   const origins = pickStampOrigins(options);
@@ -112,7 +185,7 @@ export function stampSchemOnLayer(options: StampOptions): WorldBlock[] {
 
   for (const { x, z } of origins) {
     if (!fitsWithinLayer(x, z, footprint, targetLayer)) continue;
-    result.push(...stampAt(x, z, schem, minY));
+    result.push(...stampAt(x, z, schem, anchor));
   }
 
   return result;

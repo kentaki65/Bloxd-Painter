@@ -100,12 +100,15 @@ export async function loadSchemAsWorld(result: ParsedResult): Promise<void> {
   reinitRenderWorkerMap();
 }
 
-export function convertChunks(): RawSchemInput | undefined {
+export function convertChunks(blockMapOverride?: number[][][]): RawSchemInput | undefined {
   const chunks: RawChunkData[] = [];
   const chunkCountX = sizeState.chunkLenX;
   const chunkCountZ = sizeState.chunkLenZ;
   const maxUsedHeight = getMaxUsedHeight();
   const chunkCountY = Math.ceil(maxUsedHeight / chunkSize);
+
+  const blockMap = blockMapOverride ?? mapState.blockMap;
+  if (!blockMap) return undefined;
 
   for (let cx = 0; cx < chunkCountX; cx++) {
     for (let cz = 0; cz < chunkCountZ; cz++) {
@@ -121,7 +124,9 @@ export function convertChunks(): RawSchemInput | undefined {
               let id = 0;
 
               if (wx < sizeState.widthLength && wz < sizeState.heightLength && wy < sizeState.maxHeight) {
-                const surfaceBlock = getBlock(wy, wz, wx);
+                const layer = blockMap[wy];
+                const row = layer?.[wz];
+                const surfaceBlock = row?.[wx];
                 if (surfaceBlock !== undefined && surfaceBlock !== 0) {
                   id = surfaceBlock;
                 }

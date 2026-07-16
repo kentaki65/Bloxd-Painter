@@ -112,6 +112,11 @@ export interface SaveData {
 	maxHeight: number,
 }
 
+export interface LayerRecord {
+	name: string,
+	color: number[],
+}
+
 export interface SchemChunk {
   x: number;
   y: number;
@@ -208,6 +213,17 @@ export interface EncodedSchemJson {
 export interface SplitResult {
   schems: EncodedSchemJson[];
   sliceSize: number;
+}
+
+export interface SchemStampSettings {
+  density: number;
+  minSpacing: number;
+  targetLayer: string | null;
+}
+
+export interface SchemState {
+  selected: ParsedResult | null;
+  settings: SchemStampSettings;
 }
 
 export const nameToId = {
@@ -2307,7 +2323,4 @@ export const idToName = Object.fromEntries(
   Object.entries(nameToId).map(([key, value]) => [value, key])
 ) as Record<number, SelectedBlock>;
 
-export const layerColors: Partial<Record<string, number[]>> = {
-  "layerOakForest": [30,90,40],
-  "layerPineForest": [40,110,50],
-};
+export const layerColors: Partial<Record<string, number[]>> = {};

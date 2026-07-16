@@ -77,7 +77,7 @@ export async function resizeMapEmpty(newChunkX: number, newChunkZ: number) {
     mapState.map = createSharedFloat2D(newHeight, newWidth, 0);
     mapState.blockMap = create3D(sizeState.maxHeight, newHeight, newWidth, 1);
     mapState.topBlockMap = create2D(newHeight, newWidth, 4);
-    mapState.layerMap = create2D(newHeight, newWidth, null)
+    mapState.layerMap = create2D(newHeight, newWidth, "none")
 
     sizeState.chunkLenX = newChunkX;
     sizeState.chunkLenZ = newChunkZ;

@@ -80,6 +80,7 @@ canvas {
 .LayerButton {
   height: 40px;
   min-width: 20%;
+  position: relative;
 }
 
 .viewer canvas{
@@ -93,4 +94,23 @@ canvas {
 
 .Button.active {
   background-color: rgba(0, 0, 0, 0.25);
+}
+
+.LayerButton-delete {
+  border: 1px solid red;
+  border-radius: 5px;
+
+  background-color: red;
+  color: white;
+
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 14px;
+  height: 14px;
+  font-size: 9px;
+  line-height: 12px;
+  text-align: center;
+  cursor: pointer;
+  z-index: 1;
 }

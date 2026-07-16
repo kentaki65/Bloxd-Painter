@@ -11,6 +11,10 @@ export function addCustomLayer(name: string, color: [number, number, number]): {
   return { ok: true };
 }
 
+export function deleteCustomLayer(name: string): void {
+  delete layerColors[name];
+}
+
 export function getAllLayerNames(): string[] {
   return Object.keys(layerColors);
 }

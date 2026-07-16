@@ -1,5 +1,11 @@
 import { brushState } from "../../states/index.js";
-function createLayerButton(name: string, color: [number, number, number]): HTMLButtonElement {
+
+function createLayerButton(
+  name: string,
+  color: [number, number, number],
+  onDelete: (name: string) => void
+): HTMLButtonElement 
+{  
   const btn = document.createElement("button");
   btn.className = "BlockButton LayerButton";
   btn.type = "button";
@@ -11,17 +17,30 @@ function createLayerButton(name: string, color: [number, number, number]): HTMLB
     brushState.selectedLayer = name;
   });
 
+  const deleteBtn = document.createElement("span");
+  deleteBtn.className = "LayerButton-delete";
+  deleteBtn.textContent = "✕";
+  deleteBtn.title = `Delete layer "${name}"`;
+ 
+  deleteBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onDelete(name);
+  });
+ 
+  btn.appendChild(deleteBtn);
+
   return btn;
 }
 
 export function renderLayerButtons(
   container: HTMLElement,
-  colors: Partial<Record<string, number[]>>
-): void {
+  colors: Partial<Record<string, number[]>>,
+  onDelete: (name: string) => void): void 
+{
   container.innerHTML = "";
   for (const [name, color] of Object.entries(colors)) {
     if (!color) continue;
     const rgb: [number, number, number] = [color[0] ?? 0, color[1] ?? 0, color[2] ?? 0];
-    container.appendChild(createLayerButton(name, rgb));
+    container.appendChild(createLayerButton(name, rgb, onDelete));
   }
 }

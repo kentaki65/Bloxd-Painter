@@ -2091,8 +2091,5 @@ export const nameToId = {
     "Toxin Ball": 2089
 };
 export const idToName = Object.fromEntries(Object.entries(nameToId).map(([key, value]) => [value, key]));
-export const layerColors = {
-    "layerOakForest": [30, 90, 40],
-    "layerPineForest": [40, 110, 50],
-};
+export const layerColors = {};
 //# sourceMappingURL=types.js.map

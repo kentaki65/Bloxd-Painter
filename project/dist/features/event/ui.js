@@ -9,12 +9,52 @@ import { redo, undo } from "../history/index.js";
 import { reinitBrushWorkerMap } from "../brush/workerBridge.js";
 import { reinitRenderWorkerMap, syncRenderWorkerState } from "../render/renderBridge.js";
 import { hexToRgb, parseJsonWithInfinity, validateBlockLayers } from "../../core/utils.js";
-import { addCustomLayer, getAllLayerNames, populateLayerSelect } from "../../states/customLayerState.js";
+import { addCustomLayer, deleteCustomLayer, getAllLayerNames, populateLayerSelect } from "../../states/customLayerState.js";
 import { renderLayerButtons } from "../UI/createLayerBtn.js";
+import { exportWithStamps } from "../parser/schemaParts.js";
+import { deleteLayerFromDB, loadAllLayersFromDB, saveLayerToDB } from "../autosave/index.js";
 let pendingSchemFile = null;
-export function initUiEvents(el) {
+export async function initUiEvents(el) {
     const layerToolTypesEl = document.querySelector("#layerContent .toolTypes");
-    renderLayerButtons(layerToolTypesEl, layerColors);
+    async function handleDeleteLayer(name) {
+        deleteCustomLayer(name);
+        populateLayerSelect(el.schemTargetLayerSelect, getAllLayerNames());
+        const currentLayerToolTypesEl = document.querySelector("#layerContent .toolTypes");
+        if (currentLayerToolTypesEl) {
+            renderLayerButtons(currentLayerToolTypesEl, layerColors, handleDeleteLayer);
+        }
+        if (mapState.layerMap) {
+            for (let x = 0; x < mapState.layerMap.length; x++) {
+                const row = mapState.layerMap[x];
+                if (!row)
+                    continue;
+                for (let z = 0; z < row.length; z++) {
+                    if (row[z] === name) {
+                        row[z] = "none";
+                    }
+                }
+            }
+            redrawAllChunks();
+            syncRenderWorkerState();
+        }
+        try {
+            await deleteLayerFromDB(name);
+        }
+        catch (err) {
+            console.error("Failed to delete layer from DB:", err);
+        }
+    }
+    try {
+        const savedLayers = await loadAllLayersFromDB();
+        for (const { name, color } of savedLayers) {
+            addCustomLayer(name, color);
+        }
+    }
+    catch (err) {
+        console.error("Failed to restore layers from DB:", err);
+    }
+    renderLayerButtons(layerToolTypesEl, layerColors, handleDeleteLayer);
+    populateLayerSelect(el.schemTargetLayerSelect, getAllLayerNames());
     function switchTab(activeTab, activeContent, tabs, contents) {
         tabs.forEach(tab => tab.classList.remove("tab--active"));
         contents.forEach(content => content.classList.add("hidden"));
@@ -176,7 +216,7 @@ export function initUiEvents(el) {
     el.loadSchemCancel.addEventListener("click", () => {
         el.loadSchemOverlay.classList.remove("show");
     });
-    el.addLayerBtn.addEventListener("click", () => {
+    el.addLayerBtn.addEventListener("click", async () => {
         const name = el.newLayerNameInput.value;
         const rgb = hexToRgb(el.newLayerColorInput.value);
         const result = addCustomLayer(name, rgb);
@@ -189,11 +229,26 @@ export function initUiEvents(el) {
         populateLayerSelect(el.schemTargetLayerSelect, getAllLayerNames());
         const layerToolTypesEl = document.querySelector("#layerContent .toolTypes");
         if (layerToolTypesEl) {
-            renderLayerButtons(layerToolTypesEl, layerColors);
+            renderLayerButtons(layerToolTypesEl, layerColors, handleDeleteLayer);
+        }
+        try {
+            await saveLayerToDB({ name: name.trim(), color: rgb });
+        }
+        catch (err) {
+            console.error("Failed to save layer to DB:", err);
         }
     });
     el.exportInput.addEventListener("click", async () => {
-        const json = convertChunks();
+        let blockMapForExport = undefined;
+        if (schemState.selected && schemState.settings.targetLayer) {
+            blockMapForExport = exportWithStamps(schemState.settings.targetLayer, {
+                schem: schemState.selected,
+                density: schemState.settings.density,
+                minSpacing: schemState.settings.minSpacing,
+                targetLayer: schemState.settings.targetLayer,
+            });
+        }
+        const json = convertChunks(blockMapForExport);
         if (!json)
             return;
         const result = writeBloxdSchem(json);

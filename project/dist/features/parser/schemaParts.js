@@ -1,18 +1,19 @@
 import { sizeState, mapState, getLayer, inBounds, getHeight } from "../../states/index.js";
-import { getBounds } from "./decode.js";
-function collectPaintedCells(targetLayer) {
-    const cells = [];
-    for (let z = 0; z < sizeState.heightLength; z++) {
-        for (let x = 0; x < sizeState.widthLength; x++) {
-            if (getLayer(z, x) === targetLayer) {
-                cells.push({ x, z });
-            }
-        }
-    }
-    return cells;
-}
 function cloneBlockMap(blockMap) {
     return blockMap.map(layer => layer.map(row => [...row]));
+}
+function getRootAnchor(blocks) {
+    let minY = Infinity;
+    let anchorDx = 0;
+    let anchorDz = 0;
+    for (const b of blocks) {
+        if (b.y < minY) {
+            minY = b.y;
+            anchorDx = b.x;
+            anchorDz = b.z;
+        }
+    }
+    return { dx: anchorDx, dz: anchorDz, minY };
 }
 function setBlockOn(blockMapClone, y, z, x, value) {
     const layer = blockMapClone[y];
@@ -23,7 +24,9 @@ function setBlockOn(blockMapClone, y, z, x, value) {
         return;
     row[x] = value;
 }
-function exportWithStamps(targetLayer, options) {
+export function exportWithStamps(targetLayer, options) {
+    if (!mapState.blockMap)
+        throw new Error("blockMap is not initialized");
     const clonedBlockMap = cloneBlockMap(mapState.blockMap);
     const stampedBlocks = stampSchemOnLayer(options);
     for (const b of stampedBlocks) {
@@ -53,9 +56,10 @@ function fitsWithinLayer(originX, originZ, footprintCells, targetLayer) {
     for (const { dx, dz } of footprintCells) {
         const x = originX + dx;
         const z = originZ + dz;
+        const layer = getLayer(z, x);
         if (!inBounds(z, x))
             return false;
-        if (getLayer(z, x) !== targetLayer)
+        if (layer !== targetLayer)
             return false;
     }
     return true;
@@ -72,27 +76,30 @@ function getFootprint(blocks) {
     }
     return footprint;
 }
-function stampAt(originX, originZ, schem, minY) {
-    const groundY = getHeight(originZ, originX);
+function stampAt(originX, originZ, schem, anchor) {
+    const anchorWorldX = originX + anchor.dx;
+    const anchorWorldZ = originZ + anchor.dz;
+    const groundY = getHeight(anchorWorldZ, anchorWorldX);
     if (groundY === undefined)
         return [];
+    const groundYInt = Math.round(groundY);
     return schem.blocks.map(b => ({
         x: originX + b.x,
-        y: groundY + (b.y - minY),
+        y: groundYInt + (b.y - anchor.minY),
         z: originZ + b.z,
         id: b.id,
     }));
 }
 export function stampSchemOnLayer(options) {
     const { schem, targetLayer } = options;
-    const { minY } = getBounds(schem.blocks);
+    const anchor = getRootAnchor(schem.blocks);
     const footprint = getFootprint(schem.blocks);
     const origins = pickStampOrigins(options);
     const result = [];
     for (const { x, z } of origins) {
         if (!fitsWithinLayer(x, z, footprint, targetLayer))
             continue;
-        result.push(...stampAt(x, z, schem, minY));
+        result.push(...stampAt(x, z, schem, anchor));
     }
     return result;
 }
