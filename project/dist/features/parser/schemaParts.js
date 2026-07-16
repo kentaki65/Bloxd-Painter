@@ -1,4 +1,5 @@
 import { sizeState, mapState, getLayer, inBounds, getHeight } from "../../states/index.js";
+const POISSON_K = 30;
 function cloneBlockMap(blockMap) {
     return blockMap.map(layer => layer.map(row => [...row]));
 }
@@ -36,21 +37,71 @@ export function exportWithStamps(targetLayer, options) {
 }
 function pickStampOrigins(options) {
     const { minSpacing, density } = options;
-    const origins = [];
-    for (let z = 0; z < sizeState.heightLength; z += minSpacing) {
-        for (let x = 0; x < sizeState.widthLength; x += minSpacing) {
-            if (Math.random() > density)
+    const points = poissonDiskSample(sizeState.widthLength, sizeState.heightLength, minSpacing);
+    const origins = points.filter(() => Math.random() < density);
+    return origins.filter(({ x, z }) => inBounds(z, x));
+}
+function poissonDiskSample(width, height, minDist) {
+    const cellSize = minDist / Math.SQRT2;
+    const gridW = Math.ceil(width / cellSize);
+    const gridH = Math.ceil(height / cellSize);
+    const grid = new Array(gridW * gridH).fill(null);
+    const points = [];
+    const active = [];
+    const gridIndex = (x, z) => {
+        const gx = Math.floor(x / cellSize);
+        const gz = Math.floor(z / cellSize);
+        return gz * gridW + gx;
+    };
+    const isFarEnough = (x, z) => {
+        const gx = Math.floor(x / cellSize);
+        const gz = Math.floor(z / cellSize);
+        for (let dz = -2; dz <= 2; dz++) {
+            for (let dx = -2; dx <= 2; dx++) {
+                const nx = gx + dx;
+                const nz = gz + dz;
+                if (nx < 0 || nz < 0 || nx >= gridW || nz >= gridH)
+                    continue;
+                const neighbor = grid[nz * gridW + nx];
+                if (!neighbor)
+                    continue;
+                const ddx = neighbor.x - x;
+                const ddz = neighbor.z - z;
+                if (ddx * ddx + ddz * ddz < minDist * minDist)
+                    return false;
+            }
+        }
+        return true;
+    };
+    const addPoint = (x, z) => {
+        const p = { x, z };
+        points.push(p);
+        active.push(p);
+        grid[gridIndex(x, z)] = p;
+    };
+    addPoint(Math.random() * width, Math.random() * height);
+    while (active.length > 0) {
+        const idx = Math.floor(Math.random() * active.length);
+        const base = active[idx];
+        let found = false;
+        for (let i = 0; i < POISSON_K; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = minDist * (1 + Math.random()); // [minDist, 2*minDist)
+            const nx = base.x + Math.cos(angle) * radius;
+            const nz = base.z + Math.sin(angle) * radius;
+            if (nx < 0 || nz < 0 || nx >= width || nz >= height)
                 continue;
-            const jitterX = Math.floor((Math.random() - 0.5) * minSpacing);
-            const jitterZ = Math.floor((Math.random() - 0.5) * minSpacing);
-            const px = x + jitterX;
-            const pz = z + jitterZ;
-            if (!inBounds(pz, px))
+            if (!isFarEnough(nx, nz))
                 continue;
-            origins.push({ x: px, z: pz });
+            addPoint(nx, nz);
+            found = true;
+            break;
+        }
+        if (!found) {
+            active.splice(idx, 1);
         }
     }
-    return origins;
+    return points.map(p => ({ x: Math.floor(p.x), z: Math.floor(p.z) }));
 }
 function fitsWithinLayer(originX, originZ, footprintCells, targetLayer) {
     for (const { dx, dz } of footprintCells) {

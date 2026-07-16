@@ -47,7 +47,7 @@ document.addEventListener("keydown", (e) => {
 });
 export function initDB() {
     return new Promise((resolve, reject) => {
-        const req = indexedDB.open("terrainDB", 2);
+        const req = indexedDB.open("terrainDB", 3);
         req.onupgradeneeded = (e) => {
             const target = e.target;
             if (!target)
@@ -58,6 +58,9 @@ export function initDB() {
             }
             if (!database.objectStoreNames.contains("layers")) {
                 database.createObjectStore("layers", { keyPath: "name" });
+            }
+            if (!database.objectStoreNames.contains("schemState")) {
+                database.createObjectStore("schemState", { keyPath: "id" });
             }
         };
         req.onsuccess = () => {
@@ -148,6 +151,33 @@ export function loadAllLayersFromDB() {
         const store = tx.objectStore("layers");
         const req = store.getAll();
         req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+export function saveSchemState(state) {
+    return new Promise((resolve, reject) => {
+        if (!db)
+            return reject(new Error("DB not initialized"));
+        const tx = db.transaction("schemState", "readwrite");
+        const store = tx.objectStore("schemState");
+        store.put({ id: "current", ...state });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+export function loadSchemState() {
+    return new Promise((resolve, reject) => {
+        if (!db)
+            return reject(new Error("DB not initialized"));
+        const tx = db.transaction("schemState", "readonly");
+        const store = tx.objectStore("schemState");
+        const req = store.get("current");
+        req.onsuccess = () => {
+            if (!req.result)
+                return resolve(null);
+            const { id, ...state } = req.result;
+            resolve(state);
+        };
         req.onerror = () => reject(req.error);
     });
 }

@@ -16,6 +16,14 @@ export const brushState = {
         below: {
             enabled: false,
             input: 0
+        },
+        slopeAbove: {
+            enabled: false,
+            input: 0,
+        },
+        slopeBelow: {
+            enabled: false,
+            input: 0,
         }
     },
     blockLayers: [

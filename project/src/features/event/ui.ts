@@ -12,7 +12,8 @@ import { hexToRgb, parseJsonWithInfinity, validateBlockLayers } from "../../core
 import { addCustomLayer, deleteCustomLayer, getAllLayerNames, populateLayerSelect } from "../../states/customLayerState.js";
 import { renderLayerButtons } from "../UI/createLayerBtn.js";
 import { exportWithStamps } from "../parser/schemaParts.js";
-import { deleteLayerFromDB, loadAllLayersFromDB, saveLayerToDB } from "../autosave/index.js";
+import { deleteLayerFromDB, loadAllLayersFromDB, saveLayerToDB, saveSchemState, loadSchemState } from "../autosave/index.js";
+
 
 interface UiElements {
   intensity: HTMLInputElement,
@@ -43,7 +44,13 @@ interface UiElements {
   maxHeightInput: HTMLInputElement;
   waterLevelInput: HTMLInputElement;
   aboveEnabled: HTMLInputElement;
+  aboveInput: HTMLInputElement;
   belowEnabled: HTMLInputElement;
+  belowInput: HTMLInputElement;
+  slopeAboveEnabled: HTMLInputElement;
+  slopeBelowEnabled: HTMLInputElement;
+  slopeAboveInput: HTMLInputElement;
+  slopeBelowInput: HTMLInputElement;
   brushModeButtons: HTMLElement[];
   blockModeButtons: HTMLElement[];
   createWorldOverlay: HTMLElement;
@@ -115,8 +122,24 @@ export async function initUiEvents(el: UiElements): Promise<void> {
   }
 
   renderLayerButtons(layerToolTypesEl, layerColors, handleDeleteLayer);
-
   populateLayerSelect(el.schemTargetLayerSelect, getAllLayerNames());
+
+  try {
+    const savedSchemState = await loadSchemState();
+    if (savedSchemState) {
+      schemState.selected = savedSchemState.selected;
+      schemState.settings = savedSchemState.settings;
+
+      if (schemState.settings.targetLayer) {
+        el.schemTargetLayerSelect.value = schemState.settings.targetLayer;
+      }
+      el.schemDensityInput.value = String(schemState.settings.density);
+      el.schemMinSpacingInput.value = String(schemState.settings.minSpacing);
+    }
+  } catch (err) {
+    console.error("Failed to restore schem state from DB:", err);
+  }
+
   function switchTab(activeTab: HTMLElement, activeContent: HTMLElement, tabs: HTMLElement[], contents: HTMLElement[]) {
     tabs.forEach(tab => tab.classList.remove("tab--active"));
     contents.forEach(content => content.classList.add("hidden"));
@@ -297,6 +320,13 @@ export async function initUiEvents(el: UiElements): Promise<void> {
 
       el.schemErrorlog.textContent = "";
       el.loadSchemOverlay.classList.remove("show");
+
+      try {
+        await saveSchemState(schemState);
+      } catch (err) {
+        console.error("Failed to save schem state to DB:", err);
+      }
+      
     } catch (err: any) {
       el.schemErrorlog.textContent = err?.message ?? "Failed to load schematic";
     }finally{
@@ -408,6 +438,36 @@ export async function initUiEvents(el: UiElements): Promise<void> {
     brushState.rangeFilter.below.enabled = target.checked;
   });
 
+  el.aboveInput.addEventListener("change", e => {
+    const target = e.target as HTMLInputElement;
+    brushState.rangeFilter.above.input = target.valueAsNumber;
+  })
+
+  el.belowInput.addEventListener("change", e => {
+    const target = e.target as HTMLInputElement;
+    brushState.rangeFilter.below.input = target.valueAsNumber;    
+  })
+
+  el.slopeAboveEnabled.addEventListener("change", (e) => {
+    const target = e.target as HTMLInputElement;
+    brushState.rangeFilter.slopeAbove.enabled = target.checked;
+  });
+
+  el.slopeBelowEnabled.addEventListener("change", (e) => {
+    const target = e.target as HTMLInputElement;
+    brushState.rangeFilter.slopeBelow.enabled = target.checked;
+  });
+
+  el.slopeAboveInput.addEventListener("input", (e) => {
+    const target = e.target as HTMLInputElement;
+    brushState.rangeFilter.slopeAbove.input = target.valueAsNumber || 0;
+  });
+
+  el.slopeBelowInput.addEventListener("input", (e) => {
+    const target = e.target as HTMLInputElement;
+    brushState.rangeFilter.slopeBelow.input = target.valueAsNumber || 90;
+  });
+  
   el.intensity.addEventListener("change", (e) => {
     const target = e.target as HTMLInputElement;
     brushState.intensity = target.valueAsNumber;

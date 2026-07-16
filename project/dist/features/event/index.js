@@ -57,7 +57,13 @@ export function eventInit() {
         maxHeightInput: getElement("maxHeight"),
         waterLevelInput: getElement("waterLevelHeight"),
         aboveEnabled: getElement("atOrAboveEnabled"),
+        aboveInput: getElement("orAboveRangeInput"),
         belowEnabled: getElement("atOrBelowEnabled"),
+        belowInput: getElement("atOrBelowRangeInput"),
+        slopeAboveEnabled: getElement("slopeAboveEnabled"),
+        slopeBelowEnabled: getElement("slopeBelowEnabled"),
+        slopeAboveInput: getElement("slopeAboveInput"),
+        slopeBelowInput: getElement("slopeBelowInput"),
         brushModeButtons: [
             getElement("sprayPaint"),
             getElement("height"),

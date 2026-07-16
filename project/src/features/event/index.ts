@@ -41,18 +41,22 @@ export function eventInit(): void {
     modeBar: getElement("mode"),
     layerBar: getElement("layer"),
     selectBlockBar: getElement("selectBlock"),
+
     terrainTab: getElement("terraintab"),
     advancedTab: getElement("advancedtab"),
     layertab: getElement("layertab"),
     layerContent: getElement("layerContent"),
     terrainContent: getElement("terrainContent"),
+
     advancedSetting: getElement("advancedContent"),
     brushTab: getElement("brushestab"),
     optionTab: getElement("optionstab"),
     brushContent: getElement("brushContent"),
     optionsContent: getElement("optionsContent"),
+
     toolName: getElement("toolName"),
     toolName2: getElement("toolName2"),
+
     newFileInput: getElement("newFile"),
     exportInput: getElement("exportFile"),
     importInput: getElement("importInput"),
@@ -62,8 +66,16 @@ export function eventInit(): void {
     paletteHeightInput: getElement<HTMLInputElement>("paletteHeight"),
     maxHeightInput: getElement<HTMLInputElement>("maxHeight"),
     waterLevelInput: getElement<HTMLInputElement>("waterLevelHeight"),
+
     aboveEnabled: getElement<HTMLInputElement>("atOrAboveEnabled"),
+    aboveInput: getElement<HTMLInputElement>("orAboveRangeInput"),
     belowEnabled: getElement<HTMLInputElement>("atOrBelowEnabled"),
+    belowInput: getElement<HTMLInputElement>("atOrBelowRangeInput"),
+    
+    slopeAboveEnabled: getElement<HTMLInputElement>("slopeAboveEnabled"),
+    slopeBelowEnabled: getElement<HTMLInputElement>("slopeBelowEnabled"),
+    slopeAboveInput: getElement<HTMLInputElement>("slopeAboveInput"),
+    slopeBelowInput: getElement<HTMLInputElement>("slopeBelowInput"),
 
     brushModeButtons: [
       getElement("sprayPaint"),

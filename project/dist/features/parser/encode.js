@@ -20,12 +20,13 @@ export function splitBloxdschem(json) {
         if (!chunksSlice.length)
             break;
         chunksSlice.forEach(chunk => { chunk.x -= currOffset; });
+        const chunkCountX = Math.ceil(chunksSlice.length / zySize);
         schems.push({
             name: json.name,
             x: 0,
             y: 0,
             z: 0,
-            sizeX: Math.min(json.sizeX, sliceSize * 32),
+            sizeX: Math.min(json.sizeX - currOffset * 32, chunkCountX * 32),
             sizeY: json.sizeY,
             sizeZ: json.sizeZ,
             chunks: chunksSlice,

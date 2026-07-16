@@ -4,43 +4,78 @@ import { markDirty, rebuildColumn } from "../chunk/index.js";
 import { recordChange } from "../history/index.js";
 import { syncRenderWorkerState } from "../render/renderBridge.js";
 
+export function getSlopeAngleAt(z: number, x: number): number {
+   const center = getHeight(z, x);
+   if (center === undefined) return 0;
+
+   const left = getHeight(z, x - 1) ?? center;
+   const right = getHeight(z, x + 1) ?? center;
+   const up = getHeight(z - 1, x) ?? center;
+   const down = getHeight(z + 1, x) ?? center;
+
+   const gradX = (right - left) / 2;
+   const gradY = (down - up) / 2;
+
+  const rise = Math.sqrt(gradX * gradX + gradY * gradY);
+  return Math.atan(rise) * (180 / Math.PI);
+}
+
 function sprayBrush(cellX: number, cellY: number) {
   if(!mapState.topBlockMap || !mapState.map) return;
 
-  const density = brushState.brushRadius * 3;
+  const r = brushState.brushRadius;
+  const intensityRatio = Math.min(brushState.intensity / 0.1, 1);
+  
+  if (!mouseState.leftDown) return;
 
-  for (let i = 0; i < density; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const radius = Math.sqrt(Math.random()) * brushState.brushRadius;
+  const newBlock = nameToId[brushState.selectedBlock];
 
-    const dx = Math.round(Math.cos(angle) * radius);
-    const dz = Math.round(Math.sin(angle) * radius);
-
-    const x = cellX + dx;
-    const z = cellY + dz;
-
-    if (x < 0 || z < 0 || x >= sizeState.widthLength || z >= sizeState.heightLength) continue;
-    if (!mouseState.leftDown) continue;
+  function tryPaint(x: number, z: number): void {
+    if (x < 0 || z < 0 || x >= sizeState.widthLength || z >= sizeState.heightLength) return;
 
     const oldBlock = getTopBlock(z, x);
-    if (oldBlock === undefined) continue;
-
-    const newBlock = nameToId[brushState.selectedBlock];
+    if (oldBlock === undefined) return;
 
     const h = getHeight(z, x);
-    if (h === undefined) continue;
+    if (h === undefined) return;
 
-    if (brushState.rangeFilter.above.enabled && h < brushState.rangeFilter.above.input) continue;
-    if (brushState.rangeFilter.below.enabled && h > brushState.rangeFilter.below.input) continue;
+    const d = getSlopeAngleAt(z, x);
 
-    if (oldBlock === newBlock) continue;
+    if (brushState.rangeFilter.above.enabled && h < brushState.rangeFilter.above.input) return;
+    if (brushState.rangeFilter.below.enabled && h > brushState.rangeFilter.below.input) return;
+    if (brushState.rangeFilter.slopeAbove.enabled && d < brushState.rangeFilter.slopeAbove.input) return;
+    if (brushState.rangeFilter.slopeBelow.enabled && d > brushState.rangeFilter.slopeBelow.input) return;
+    if (oldBlock === newBlock) return;
 
     recordChange(x, z, oldBlock, newBlock, "block");
     setTopBlock(z, x, newBlock);
     rebuildColumn(x, z, h);
     markDirty(x, z);
   }
-  syncRenderWorkerState(); 
+
+  if (intensityRatio >= 1) {
+    const r2 = r * r;
+    for (let dz = -r; dz <= r; dz++) {
+      const dxMax = Math.floor(Math.sqrt(r2 - dz * dz));
+      for (let dx = -dxMax; dx <= dxMax; dx++) {
+        if (dx * dx + dz * dz > r2) continue;
+        tryPaint(cellX + dx, cellY + dz);
+      }
+    }
+  } else {
+    const density = r * 3 * intensityRatio;
+    for (let i = 0; i < density; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = Math.sqrt(Math.random()) * r;
+
+      const dx = Math.round(Math.cos(angle) * radius);
+      const dz = Math.round(Math.sin(angle) * radius);
+
+      tryPaint(cellX + dx, cellY + dz);
+    }
+  }
+
+  syncRenderWorkerState();
 }
 
 function layerBrush(cellX: number, cellY: number) {
@@ -70,8 +105,12 @@ function layerBrush(cellX: number, cellY: number) {
       const h = getHeight(y, x);
       if (h === undefined) continue;
 
+      const d = getSlopeAngleAt(y, x);
+
       if (brushState.rangeFilter.above.enabled && h < brushState.rangeFilter.above.input) continue;
       if (brushState.rangeFilter.below.enabled && h > brushState.rangeFilter.below.input) continue;
+      if (brushState.rangeFilter.slopeAbove.enabled && d < brushState.rangeFilter.slopeAbove.input) continue;
+      if (brushState.rangeFilter.slopeBelow.enabled && d > brushState.rangeFilter.slopeBelow.input) continue;
 
       if (oldLayer === newLayer) continue;
 

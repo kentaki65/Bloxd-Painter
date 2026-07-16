@@ -9,6 +9,8 @@ export type Stroke = Change[];
 export type FilterObj = {
   above: FilterValue,
   below: FilterValue,
+  slopeAbove: FilterValue,
+  slopeBelow: FilterValue,
 }
 
 export type Change =

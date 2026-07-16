@@ -39,6 +39,8 @@ function lerp(a: number, b: number, t: number): number {
 interface RangeFilter {
   above: { enabled: boolean; input: number };
   below: { enabled: boolean; input: number };
+  slopeAbove: { enabled: boolean; input: number },
+  slopeBelow: { enabled: boolean; input: number },
 }
 
 interface BrushParams {
@@ -72,6 +74,7 @@ function computeNormalBrush(params: BrushParams): ChangedCell[] {
   const changed: ChangedCell[] = [];
   if (!state.map) return changed;
 
+  const heightSnapshot = state.map.slice();
   const r2 = r * r;
 
   const brushImageData = brushType !== "default" ? state.loadedBrushes[brushType] ?? null : null;
@@ -123,8 +126,13 @@ function computeNormalBrush(params: BrushParams): ChangedCell[] {
         }
       }
 
+      const d = getSlopeAngleAt(x, y, heightSnapshot);
+
       if (rangeFilter.above.enabled && newH < rangeFilter.above.input) continue;
       if (rangeFilter.below.enabled && newH > rangeFilter.below.input) continue;
+      if (rangeFilter.slopeAbove.enabled && d < rangeFilter.slopeAbove.input) continue;
+      if (rangeFilter.slopeBelow.enabled && d > rangeFilter.slopeBelow.input) continue;
+
       if (Math.abs(newH - oldH) < threshold) continue;
 
       state.map[idx(x, y)] = newH;
@@ -135,11 +143,36 @@ function computeNormalBrush(params: BrushParams): ChangedCell[] {
   return changed;
 }
 
+function getHeightFrom(map: HeightMap | null, x: number, y: number): number | undefined {
+  if (!map) return undefined;
+  if (x < 0 || y < 0 || x >= state.width || y >= state.height) return undefined;
+  return map[idx(x, y)];
+}
+
+export function getSlopeAngleAt(z: number, x: number, source?: HeightMap): number {
+   const map = source ?? state.map;
+   const center = getHeightFrom(map, z, x); 
+
+   if (center === undefined) return 0;
+
+   const left = getHeightFrom(map, z, x - 1) ?? center;
+   const right = getHeightFrom(map, z, x + 1) ?? center;
+   const up = getHeightFrom(map, z - 1, x) ?? center;
+   const down = getHeightFrom(map, z + 1, x) ?? center;
+
+   const gradX = (right - left) / 2;
+   const gradY = (down - up) / 2;
+
+  const rise = Math.sqrt(gradX * gradX + gradY * gradY);
+  return Math.atan(rise) * (180 / Math.PI);
+}
+
 function computeSmoothBrush(params: BrushParams): ChangedCell[] {
   const { cellX, cellY, radius: r, rangeFilter, maxHeight, intensity, threshold } = params;
   const changed: ChangedCell[] = [];
   if (!state.map) return changed;
 
+  const heightSnapshot = state.map.slice();
   const r2 = r * r;
 
   for (let dy = -r; dy <= r; dy++) {
@@ -163,9 +196,12 @@ function computeSmoothBrush(params: BrushParams): ChangedCell[] {
       const avg = (oldH + left + right + up + down) / 5;
       const strength = 0.5 * (1 - (dx * dx + dy * dy) / r2) * intensity;
       const newH = heightClamp(lerp(oldH, avg, strength), maxHeight);
+      const d = getSlopeAngleAt(x, y, heightSnapshot);
 
       if (rangeFilter.above.enabled && newH < rangeFilter.above.input) continue;
       if (rangeFilter.below.enabled && newH > rangeFilter.below.input) continue;
+      if (rangeFilter.slopeAbove.enabled && d < rangeFilter.slopeAbove.input) continue;
+      if (rangeFilter.slopeBelow.enabled && d > rangeFilter.slopeBelow.input) continue;      
       if (Math.abs(newH - oldH) < threshold) continue;
 
       state.map[idx(x, y)] = newH;

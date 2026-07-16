@@ -4,7 +4,7 @@ import { showPopup } from "../UI/loading.js";
 import { redrawAllChunks } from "../chunk/index.js";
 import { SaveData } from "../../core/types.js";
 import { downloadJSON, importJSON } from "../parser/index.js";
-import { LayerRecord } from "../../core/types.js";
+import { LayerRecord, SchemState } from "../../core/types.js";
 
 let db: IDBDatabase | null = null;
 
@@ -57,7 +57,7 @@ document.addEventListener("keydown", (e) => {
 
 export function initDB(): Promise<void> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open("terrainDB", 2);
+    const req = indexedDB.open("terrainDB", 3);
 
     req.onupgradeneeded = (e) => {
       const target = e.target as IDBOpenDBRequest | null;
@@ -69,7 +69,10 @@ export function initDB(): Promise<void> {
       }
       if (!database.objectStoreNames.contains("layers")) {
         database.createObjectStore("layers", { keyPath: "name" });
-      }    
+      }
+      if (!database.objectStoreNames.contains("schemState")) {
+        database.createObjectStore("schemState", { keyPath: "id" });
+      }
     };
 
     req.onsuccess = () => {
@@ -176,6 +179,36 @@ export function loadAllLayersFromDB(): Promise<LayerRecord[]> {
     const req = store.getAll();
 
     req.onsuccess = () => resolve(req.result as LayerRecord[]);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export function saveSchemState(state: SchemState): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (!db) return reject(new Error("DB not initialized"));
+
+    const tx = db.transaction("schemState", "readwrite");
+    const store = tx.objectStore("schemState");
+    store.put({ id: "current", ...state });
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export function loadSchemState(): Promise<SchemState | null> {
+  return new Promise((resolve, reject) => {
+    if (!db) return reject(new Error("DB not initialized"));
+
+    const tx = db.transaction("schemState", "readonly");
+    const store = tx.objectStore("schemState");
+    const req = store.get("current");
+
+    req.onsuccess = () => {
+      if (!req.result) return resolve(null);
+      const { id, ...state } = req.result;
+      resolve(state as SchemState);
+    };
     req.onerror = () => reject(req.error);
   });
 }
