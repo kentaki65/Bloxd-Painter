@@ -1,12 +1,12 @@
 import { mapState, sizeState, chunkState, getHeight } from "../../states/index.js";
 import { chunkSize } from "../../core/constants.js";
-import { resizeMap, resizeHeight, rebuildColumn, redrawAllChunks } from "../chunk/index.js";
+import { resizeMap, resizeHeight, rebuildColumn } from "../chunk/index.js";
 import { parse } from "./decode.js";
 import { createSharedFloat2D } from "../../core/utils.js";
 import { WrittenSchems, ImportedJsonData, ParsedResult } from "../../core/types.js";
 import { Buffer } from "https://esm.sh/buffer";
 import { reinitBrushWorkerMap } from "../brush/workerBridge.js";
-import { reinitRenderWorkerMap } from "../render/renderBridge.js";
+import { renderFullTerrain } from "../render/render.js";
 
 export async function downloadSchems(result: WrittenSchems): Promise<void> {
   const baseName = mapState.fileName || "schem";
@@ -134,12 +134,9 @@ export function importJSON(file: File): void {
         }
       }
 
-      chunkState.dirtyChunks.clear();
-      redrawAllChunks();
-
+      renderFullTerrain();
       reinitBrushWorkerMap();
-      reinitRenderWorkerMap();
-
+      
       console.log("Loaded JSON");
     } catch (e) {
       console.error("Invalid JSON", e);

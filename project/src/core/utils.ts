@@ -1,5 +1,6 @@
-import { sizeState } from "../states/index.js";
-import { LayerStruct } from "./types.js";
+import { getBlock, mapState, sizeState, tryGetHeight } from "../states/index.js";
+import { blockColors, DEFAULT_COLOR } from "./constants.js";
+import { idToName, LayerStruct } from "./types.js";
 
 export const heightClamp = (v:number) => {
   return Math.max(0, Math.min(sizeState.maxHeight, v));
@@ -201,4 +202,103 @@ export function hexToRgb(hex: string): [number, number, number] {
   const g = parseInt(clean.slice(2, 4), 16);
   const b = parseInt(clean.slice(4, 6), 16);
   return [r, g, b];
+}
+
+export function buildColorLUT(): Uint8Array {
+  const maxId = Object.keys(idToName).reduce(
+    (max, k) => Math.max(max, Number(k)),
+    0
+  );
+  const lut = new Uint8Array((maxId + 1) * 3);
+
+  for (let id = 0; id <= maxId; id++) {
+    const name = idToName[id] ?? "Air";
+    const base = blockColors[name] ?? DEFAULT_COLOR;
+    const o = id * 3;
+    lut[o]     = base[0] ?? 0;
+    lut[o + 1] = base[1] ?? 0;
+    lut[o + 2] = base[2] ?? 0;
+  }
+
+  return lut;
+}
+
+export function buildBlockIdMap(): Uint16Array | undefined{
+  if (!mapState.map || !mapState.topBlockMap || !mapState.blockMap) {
+    return;
+  }
+
+  const w = sizeState.widthLength;
+  const h = sizeState.heightLength;
+  const out = new Uint16Array(w * h);
+
+  for (let y = 0; y < h; y++) {
+    const row = mapState.topBlockMap[y];
+    for (let x = 0; x < w; x++) {
+      const height = tryGetHeight(y, x) ?? 0;
+      const topY = Math.min(sizeState.maxHeight - 1, Math.max(0, Math.floor(height)));
+
+      const topValue = row?.[x];
+      const layerValue = getBlock(topY, y, x);
+
+      const blockId: number =
+        topValue != null ? topValue : layerValue != null ? layerValue : 0;
+
+      out[y * w + x] = blockId;
+    }
+  }
+
+  return out;
+}
+
+export function buildLayerNameToId(
+  layerColors: Partial<Record<string, number[]>>
+): Map<string, number> {
+  const map = new Map<string, number>();
+  map.set("none", 0); // "none" = レイヤーなし。予約してID0(透明)に固定する
+  let nextId = 1;
+  for (const name of Object.keys(layerColors)) {
+    if (name === "none") continue; // 既に0番として予約済みなので重複させない
+    map.set(name, nextId++);
+  }
+  return map;
+}
+
+export function buildLayerIdMap(
+  layerMap: (string | null)[][] | null,
+  layerNameToId: Map<string, number>,
+  width: number,
+  height: number
+): Uint8Array | undefined {
+  if (!layerMap) return undefined;
+
+  const out = new Uint8Array(width * height);
+
+  for (let y = 0; y < height; y++) {
+    const row = layerMap[y];
+    for (let x = 0; x < width; x++) {
+      const layer = row?.[x];
+      out[y * width + x] = layer ? (layerNameToId.get(layer) ?? 0) : 0;
+    }
+  }
+  return out;
+}
+
+export function buildLayerColorLUT(
+  layerColors: Partial<Record<string, number[]>>,
+  layerNameToId: Map<string, number>
+): Uint8Array {
+  const maxId = layerNameToId.size;
+  const lut = new Uint8Array(maxId * 4);
+
+  for (const [name, id] of layerNameToId) {
+    if (id === 0) continue;
+    const c = layerColors[name];
+    const o = id * 4;
+    lut[o]     = c?.[0] ?? 0;
+    lut[o + 1] = c?.[1] ?? 0;
+    lut[o + 2] = c?.[2] ?? 0;
+    lut[o + 3] = 255;
+  }
+  return lut;
 }

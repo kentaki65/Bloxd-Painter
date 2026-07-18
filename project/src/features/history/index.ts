@@ -1,8 +1,8 @@
 import { stackState, mapState, sizeState } from "../../states/index.js";
-import { applyColumnChanges, markDirty } from "../chunk/index.js";
+import { applyColumnChanges } from "../chunk/index.js";
 import { Change, Stroke, ChangeType } from "../../core/types.js";
 import { setHeight } from "../../states/index.js";
-import { syncRenderWorkerState } from "../render/renderBridge.js";
+import { renderFullTerrain } from "../render/render.js";
 
 let heightMap: Map<number, Change> | null = null;
 let blockMap: Map<number, Change> | null = null;
@@ -82,12 +82,12 @@ export function undo(): void {
     else if (c.type === "block") {
       const row = mapState.topBlockMap?.[c.y];
       if (row) row[c.x] = c.before;
-      markDirty(c.x, c.y);
+      renderFullTerrain();
     }
     else if (c.type === "layer") {
       const row = mapState.layerMap?.[c.y];
       if (row) row[c.x] = c.before;
-      markDirty(c.x, c.y);
+      renderFullTerrain()
     }
   }
 
@@ -96,8 +96,6 @@ export function undo(): void {
   if (heightChanged.size > 0) {
     applyColumnChanges(heightChanged);
   }
-
-  syncRenderWorkerState();
 }
 
 export function redo() {
@@ -116,12 +114,12 @@ export function redo() {
     else if (c.type === "block") {
       const row = mapState.topBlockMap?.[c.y];
       if (row) row[c.x] = c.after;
-      markDirty(c.x, c.y);
+      renderFullTerrain();
     }
     else if (c.type === "layer") {
       const row = mapState.layerMap?.[c.y];
       if (row) row[c.x] = c.after;
-      markDirty(c.x, c.y);
+      renderFullTerrain();
     }
   }
 
@@ -130,6 +128,4 @@ export function redo() {
   if (heightChanged.size > 0) {
     applyColumnChanges(heightChanged);
   }
-
-  syncRenderWorkerState();
 }

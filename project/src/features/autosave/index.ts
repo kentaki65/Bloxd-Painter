@@ -1,7 +1,7 @@
 import { getElement } from "../../core/utils.js";
 import { mapState, sizeState } from "../../states/index.js";
 import { showPopup } from "../UI/loading.js";
-import { redrawAllChunks } from "../chunk/index.js";
+import { renderFullTerrain } from "../render/render.js";
 import { SaveData } from "../../core/types.js";
 import { downloadJSON, importJSON } from "../parser/index.js";
 import { LayerRecord, SchemState } from "../../core/types.js";
@@ -77,7 +77,6 @@ export function initDB(): Promise<void> {
 
     req.onsuccess = () => {
       db = req.result;
-      redrawAllChunks();
       resolve();
     };
 

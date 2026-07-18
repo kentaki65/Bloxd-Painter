@@ -1,7 +1,7 @@
 import { stackState, mapState, sizeState } from "../../states/index.js";
-import { applyColumnChanges, markDirty } from "../chunk/index.js";
+import { applyColumnChanges } from "../chunk/index.js";
 import { setHeight } from "../../states/index.js";
-import { syncRenderWorkerState } from "../render/renderBridge.js";
+import { renderFullTerrain } from "../render/render.js";
 let heightMap = null;
 let blockMap = null;
 let layerMap = null;
@@ -56,20 +56,19 @@ export function undo() {
             const row = mapState.topBlockMap?.[c.y];
             if (row)
                 row[c.x] = c.before;
-            markDirty(c.x, c.y);
+            renderFullTerrain();
         }
         else if (c.type === "layer") {
             const row = mapState.layerMap?.[c.y];
             if (row)
                 row[c.x] = c.before;
-            markDirty(c.x, c.y);
+            renderFullTerrain();
         }
     }
     stackState.redoStack.push(stroke);
     if (heightChanged.size > 0) {
         applyColumnChanges(heightChanged);
     }
-    syncRenderWorkerState();
 }
 export function redo() {
     if (!mapState.map || !mapState.topBlockMap || !mapState.layerMap)
@@ -87,19 +86,18 @@ export function redo() {
             const row = mapState.topBlockMap?.[c.y];
             if (row)
                 row[c.x] = c.after;
-            markDirty(c.x, c.y);
+            renderFullTerrain();
         }
         else if (c.type === "layer") {
             const row = mapState.layerMap?.[c.y];
             if (row)
                 row[c.x] = c.after;
-            markDirty(c.x, c.y);
+            renderFullTerrain();
         }
     }
     stackState.undoStack.push(stroke);
     if (heightChanged.size > 0) {
         applyColumnChanges(heightChanged);
     }
-    syncRenderWorkerState();
 }
 //# sourceMappingURL=index.js.map

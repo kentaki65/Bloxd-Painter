@@ -3,7 +3,7 @@ import { chunkSize } from "../../core/constants.js";
 import { resize2D, resize3D, create2D, create3D, createSharedFloat2D, resizeSharedFloat2D } from "../../core/utils.js";
 import { runLoading } from "../UI/loading.js";
 import { setBlock } from "../../states/index.js";
-import { syncRenderWorkerState } from "../render/renderBridge.js";
+import { renderFullTerrain, updateTerrainRegion } from "../render/render.js";
 export async function resizeMap(newChunkX, newChunkZ) {
     await runLoading(async () => {
         const oldChunkCanvas = chunkState.chunkCanvas;
@@ -42,14 +42,6 @@ export async function resizeMap(newChunkX, newChunkZ) {
         chunkState.chunkCanvas = newChunkCanvas;
         chunkState.chunkCols = newCols;
         chunkState.chunkRows = newRows;
-        chunkState.dirtyChunks.clear();
-        for (let cy = 0; cy < newRows; cy++) {
-            for (let cx = 0; cx < newCols; cx++) {
-                if (cy >= oldRows || cx >= oldCols) {
-                    chunkState.dirtyChunks.add(`${cx},${cy}`);
-                }
-            }
-        }
     });
 }
 export async function resizeMapEmpty(newChunkX, newChunkZ) {
@@ -65,8 +57,6 @@ export async function resizeMapEmpty(newChunkX, newChunkZ) {
         chunkState.chunkCols = newChunkX;
         chunkState.chunkRows = newChunkZ;
         chunkState.chunkCanvas = create2D(newChunkZ, newChunkX, null);
-        chunkState.dirtyChunks.clear();
-        redrawAllChunks(newChunkZ, newChunkX);
     });
 }
 export async function resizeHeight(newMaxHeight) {
@@ -88,7 +78,6 @@ export async function resizeHeight(newMaxHeight) {
         }
         sizeState.maxHeight = newMaxHeight;
         mapState.blockMap = newMap3D;
-        redrawAllChunks();
     });
 }
 export async function resizeHeightEmpty(newMaxHeight) {
@@ -97,7 +86,6 @@ export async function resizeHeightEmpty(newMaxHeight) {
         const height = sizeState.heightLength;
         mapState.blockMap = create3D(newMaxHeight, height, width, 0);
         sizeState.maxHeight = newMaxHeight;
-        redrawAllChunks();
     });
 }
 export function rebuildColumn(x, y, height, oldHeight) {
@@ -135,6 +123,7 @@ export function rebuildColumn(x, y, height, oldHeight) {
 export function applyColumnChanges(changed) {
     if (!mapState.map)
         return;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const [key, oldH] of changed) {
         const [x, y] = key.split(",").map(Number);
         if (x === undefined || y === undefined)
@@ -143,22 +132,13 @@ export function applyColumnChanges(changed) {
         if (height === undefined)
             continue;
         rebuildColumn(x, y, height, oldH);
-        const ccx = (x / chunkSize) | 0;
-        const ccy = (y / chunkSize) | 0;
-        chunkState.dirtyChunks.add(`${ccx},${ccy}`);
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
     }
-    syncRenderWorkerState();
-}
-export function markDirty(x, y) {
-    const cx = (x / chunkSize) | 0;
-    const cy = (y / chunkSize) | 0;
-    chunkState.dirtyChunks.add(`${cx},${cy}`);
-}
-export function redrawAllChunks(rows = chunkState.chunkRows, cols = chunkState.chunkCols) {
-    for (let cy = 0; cy < rows; cy++) {
-        for (let cx = 0; cx < cols; cx++) {
-            chunkState.dirtyChunks.add(`${cx},${cy}`);
-        }
+    if (minX <= maxX && minY <= maxY) {
+        updateTerrainRegion(minX - 1, minY - 1, (maxX - minX) + 3, (maxY - minY) + 3);
     }
 }
 export function applyWaterLevel() {
@@ -189,7 +169,6 @@ export function applyWaterLevel() {
             }
         }
     }
-    redrawAllChunks();
-    syncRenderWorkerState();
+    renderFullTerrain();
 }
 //# sourceMappingURL=index.js.map

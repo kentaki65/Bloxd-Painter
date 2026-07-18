@@ -1,18 +1,18 @@
 // features/event/ui.ts
 import { brushState, mapState, sizeState, schemState } from "../../states/index.js";
-import { resizeHeight, resizeMap, redrawAllChunks, applyWaterLevel, resizeMapEmpty } from "../chunk/index.js";
+import { resizeHeight, resizeMap, applyWaterLevel, resizeMapEmpty } from "../chunk/index.js";
 import { writeBloxdSchem, downloadSchems, convertChunks, loadSchem, loadSchemAsWorld } from "../parser/index.js";
 import { blockColors } from "../../core/constants.js";
 import { layerColors } from "../../core/types.js";
 import { initMaps } from "../../states/init.js";
 import { redo, undo } from "../history/index.js";
 import { reinitBrushWorkerMap } from "../brush/workerBridge.js";
-import { reinitRenderWorkerMap, syncRenderWorkerState } from "../render/renderBridge.js";
 import { hexToRgb, parseJsonWithInfinity, validateBlockLayers } from "../../core/utils.js";
 import { addCustomLayer, deleteCustomLayer, getAllLayerNames, populateLayerSelect } from "../../states/customLayerState.js";
 import { renderLayerButtons } from "../UI/createLayerBtn.js";
 import { exportWithStamps } from "../parser/schemaParts.js";
 import { deleteLayerFromDB, loadAllLayersFromDB, saveLayerToDB, saveSchemState, loadSchemState } from "../autosave/index.js";
+import { rebuildLayerPalette, renderFullTerrain } from "../render/render.js";
 let pendingSchemFile = null;
 export async function initUiEvents(el) {
     const layerToolTypesEl = document.querySelector("#layerContent .toolTypes");
@@ -34,9 +34,9 @@ export async function initUiEvents(el) {
                     }
                 }
             }
-            redrawAllChunks();
-            syncRenderWorkerState();
+            renderFullTerrain();
         }
+        rebuildLayerPalette();
         try {
             await deleteLayerFromDB(name);
         }
@@ -150,12 +150,11 @@ export async function initUiEvents(el) {
         await resizeMapEmpty(chunkX, chunkZ);
         applyWaterLevel();
         reinitBrushWorkerMap();
-        reinitRenderWorkerMap();
         el.createWorldOverlay.classList.remove("show");
     });
     el.newFileInput.addEventListener("click", () => {
         initMaps();
-        redrawAllChunks();
+        renderFullTerrain();
     });
     el.editBlockLayer.addEventListener("click", e => {
         el.editBlockLayerOverlay.classList.add("show");
@@ -230,9 +229,6 @@ export async function initUiEvents(el) {
         catch (err) {
             el.schemErrorlog.textContent = err?.message ?? "Failed to load schematic";
         }
-        finally {
-            syncRenderWorkerState();
-        }
     });
     el.loadSchemCancel.addEventListener("click", () => {
         el.loadSchemOverlay.classList.remove("show");
@@ -252,6 +248,7 @@ export async function initUiEvents(el) {
         if (layerToolTypesEl) {
             renderLayerButtons(layerToolTypesEl, layerColors, handleDeleteLayer);
         }
+        rebuildLayerPalette();
         try {
             await saveLayerToDB({ name: name.trim(), color: rgb });
         }

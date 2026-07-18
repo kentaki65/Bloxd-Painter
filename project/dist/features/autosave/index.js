@@ -1,7 +1,6 @@
 import { getElement } from "../../core/utils.js";
 import { mapState, sizeState } from "../../states/index.js";
 import { showPopup } from "../UI/loading.js";
-import { redrawAllChunks } from "../chunk/index.js";
 import { downloadJSON, importJSON } from "../parser/index.js";
 let db = null;
 const fileInput = document.createElement("input");
@@ -65,7 +64,6 @@ export function initDB() {
         };
         req.onsuccess = () => {
             db = req.result;
-            redrawAllChunks();
             resolve();
         };
         req.onerror = () => {

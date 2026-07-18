@@ -9,14 +9,6 @@ export function initChunks():void{
   chunkState.chunkCanvas = Array.from({ length: chunkState.chunkRows }, () =>
     Array.from({ length: chunkState.chunkCols }, () => null)
   );
-
-  chunkState.dirtyChunks.clear();
-
-  for(let cy = 0; cy < chunkState.chunkRows; cy++){
-    for(let cx = 0; cx < chunkState.chunkCols; cx++){
-      chunkState.dirtyChunks.add(`${cx},${cy}`);
-    }
-  }
 }
 
 export const mapInit = () => createSharedFloat2D(sizeState.heightLength, sizeState.widthLength, 0);

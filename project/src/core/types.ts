@@ -96,7 +96,6 @@ export interface ChunkState {
   chunkCols: number;
   chunkRows: number;
   chunkCanvas: (HTMLCanvasElement | null)[][] | null;
-  dirtyChunks: Set<string>;
 }
 
 export interface StackState {
@@ -227,6 +226,10 @@ export interface SchemState {
   selected: ParsedResult | null;
   settings: SchemStampSettings;
 }
+
+export type FrameRenderRequest = {
+    requestId: number;
+};
 
 export const nameToId = {
 	"Air": 0,

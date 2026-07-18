@@ -25,7 +25,7 @@
   border: 0;
 }
 
-.option:hover > .dropdownMenu{
+.dropdownMenu.open {
   display: flex;
   flex-direction: column;
   padding: 3px;
@@ -40,4 +40,8 @@
   border: 2px solid gray;
   background-color: gray;
   border-radius: 2px;
+}
+
+.dropdownMenu > button {
+  z-index: 1;
 }

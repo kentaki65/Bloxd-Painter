@@ -40,19 +40,16 @@ function sendMapToWorker() {
         buffer: mapState.map.buffer,
     });
 }
+let syncScheduled = false;
 function applyBrushResult(changed) {
     if (changed.length === 0)
         return;
-    const t0 = performance.now();
     const heightChanged = new Map();
     for (const c of changed) {
         recordChange(c.x, c.y, c.oldH, c.newH, "height");
         heightChanged.set(`${c.x},${c.y}`, c.oldH);
     }
-    const t1 = performance.now();
     applyColumnChanges(heightChanged);
-    const t2 = performance.now();
-    console.log(`[perf] changed=${changed.length} recordChange=${(t1 - t0).toFixed(1)}ms applyColumnChanges=${(t2 - t1).toFixed(1)}ms total=${(t2 - t0).toFixed(1)}ms`);
 }
 export function applyBrushViaWorker() {
     if (!worker || brushBusy)

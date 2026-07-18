@@ -1,8 +1,8 @@
 import { sizeState, brushState, mouseState, mapState, cameraState, getTopBlock, getHeight, setTopBlock, getLayer, setLayer } from "../../states/index.js";
 import { cellSize, nameToId } from "../../core/constants.js";
-import { markDirty, rebuildColumn } from "../chunk/index.js";
+import { rebuildColumn } from "../chunk/index.js";
 import { recordChange } from "../history/index.js";
-import { syncRenderWorkerState } from "../render/renderBridge.js";
+import { updateTerrainBlockRegion, updateTerrainLayerRegion } from "../render/render.js";
 export function getSlopeAngleAt(z, x) {
     const center = getHeight(z, x);
     if (center === undefined)
@@ -24,6 +24,7 @@ function sprayBrush(cellX, cellY) {
     if (!mouseState.leftDown)
         return;
     const newBlock = nameToId[brushState.selectedBlock];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     function tryPaint(x, z) {
         if (x < 0 || z < 0 || x >= sizeState.widthLength || z >= sizeState.heightLength)
             return;
@@ -47,7 +48,10 @@ function sprayBrush(cellX, cellY) {
         recordChange(x, z, oldBlock, newBlock, "block");
         setTopBlock(z, x, newBlock);
         rebuildColumn(x, z, h);
-        markDirty(x, z);
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, z);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, z);
     }
     if (intensityRatio >= 1) {
         const r2 = r * r;
@@ -70,13 +74,16 @@ function sprayBrush(cellX, cellY) {
             tryPaint(cellX + dx, cellY + dz);
         }
     }
-    syncRenderWorkerState();
+    if (minX <= maxX && minY <= maxY) {
+        updateTerrainBlockRegion(minX - 1, minY - 1, (maxX - minX) + 3, (maxY - minY) + 3);
+    }
 }
 function layerBrush(cellX, cellY) {
     if (!mapState.layerMap || !mapState.map)
         return;
     const r = brushState.brushRadius;
     const r2 = r * r;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (let dy = -r; dy <= r; dy++) {
         const dxMax = Math.floor(Math.sqrt(r * r - dy * dy));
         for (let dx = -dxMax; dx <= dxMax; dx++) {
@@ -108,14 +115,17 @@ function layerBrush(cellX, cellY) {
                 continue;
             if (brushState.rangeFilter.slopeBelow.enabled && d > brushState.rangeFilter.slopeBelow.input)
                 continue;
-            if (oldLayer === newLayer)
-                continue;
             recordChange(x, y, oldLayer, newLayer, "layer");
             setLayer(y, x, newLayer);
-            markDirty(x, y);
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
         }
     }
-    syncRenderWorkerState();
+    if (minX <= maxX && minY <= maxY) {
+        updateTerrainLayerRegion(minX - 1, minY - 1, (maxX - minX) + 3, (maxY - minY) + 3);
+    }
 }
 export function applyBrush() {
     const size = cellSize * cameraState.zoom;

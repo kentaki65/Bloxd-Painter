@@ -4,9 +4,7 @@ import { chunkSize } from "../../core/constants.js";
 import { sizeState, mapState, getHeight, setBlock } from "../../states/index.js";
 import { create3D } from "../../core/utils.js";
 import { Bounds, ParsedResult, RawSchemInput, RawChunkData } from "../../core/types.js";
-import { getBlock } from "../../states/index.js";
 import { reinitBrushWorkerMap } from "../brush/workerBridge.js";
-import { reinitRenderWorkerMap } from "../render/renderBridge.js";
 
 function getMaxUsedHeight(): number {
   if(!mapState.map) return 0;
@@ -97,7 +95,6 @@ export async function loadSchemAsWorld(result: ParsedResult): Promise<void> {
   applyParsed(result, bounds);
 
   reinitBrushWorkerMap();
-  reinitRenderWorkerMap();
 }
 
 export function convertChunks(blockMapOverride?: number[][][]): RawSchemInput | undefined {
