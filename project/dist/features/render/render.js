@@ -180,7 +180,6 @@ export function initTerrainCanvas(existingCanvas) {
     blockIdMap = buildBlockIdMap();
     layerNameToId = buildLayerNameToId(layerColors);
     layerIdMap = buildLayerIdMap(mapState.layerMap, layerNameToId, sizeState.widthLength, sizeState.heightLength);
-    console.log("initial layerIdMap:", layerIdMap, "layerMap exists:", !!mapState.layerMap);
     layerColorLUT = buildLayerColorLUT(layerColors, layerNameToId);
     const container = existingCanvas.parentElement;
     const computedPosition = getComputedStyle(container).position;
@@ -346,7 +345,6 @@ function updateFullRegion(x0, y0, w0, h0) {
 function updateLayerIdMapRegion(x0, y0, w0, h0) {
     if (!layerIdMap || !mapState.layerMap || !layerNameToId)
         return;
-    console.log("updateLayerIdMapRegion called", { x0, y0, w0, h0, hasLayerIdMap: !!layerIdMap });
     const width = sizeState.widthLength;
     const height = sizeState.heightLength;
     const endX = Math.min(x0 + w0, width);
@@ -356,10 +354,6 @@ function updateLayerIdMapRegion(x0, y0, w0, h0) {
         for (let x = Math.max(0, x0); x < endX; x++) {
             const layer = row?.[x];
             const id = layer ? (layerNameToId.get(layer) ?? 0) : 0;
-            if (x === Math.floor((x0 + endX) / 2) && y === Math.floor((y0 + endY) / 2)) {
-                // 範囲の中心1点だけログ(全セル分出ると大量になるので)
-                console.log("sample cell:", { layer, id, layerNameToIdKeys: [...layerNameToId.keys()] });
-            }
             layerIdMap[y * width + x] = id;
         }
     }
@@ -399,7 +393,6 @@ export function updateTerrainLayerRegion(x, y, w, h) {
     renderFullTerrain();
 }
 export function rebuildLayerPalette() {
-    console.log(layerColors);
     layerNameToId = buildLayerNameToId(layerColors);
     layerColorLUT = buildLayerColorLUT(layerColors, layerNameToId);
     uploadLayerColorLUTToFullRenderer();

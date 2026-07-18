@@ -1,6 +1,8 @@
 export const chunkSize = 32; //チャンクの縦/横幅
 export const cellSize = 10;
 export const contour = 10; //contorごとに等高線が引かれる
+export const SPRAY_INTENSITY_MIN = 0.025;
+export const SPRAY_INTENSITY_MAX = 0.1;
 export const DEFAULT_COLOR = [255, 0, 255]; //ブロックが見つからなかった時のデフォルトカラー
 export const BRUSH_IMAGE_PATH = "assets/brushes/";
 export const blockColors = {

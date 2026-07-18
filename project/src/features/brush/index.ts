@@ -1,5 +1,6 @@
 import { sizeState, brushState, mouseState, mapState, cameraState, getTopBlock, getHeight, setTopBlock, getLayer, setLayer } from "../../states/index.js";
 import { cellSize, nameToId } from "../../core/constants.js";
+import { SPRAY_INTENSITY_MIN, SPRAY_INTENSITY_MAX } from "../../core/constants.js";
 import { rebuildColumn } from "../chunk/index.js";
 import { recordChange } from "../history/index.js";
 import { updateTerrainBlockRegion, updateTerrainLayerRegion } from "../render/render.js";
@@ -25,7 +26,10 @@ function sprayBrush(cellX: number, cellY: number) {
   if (!mapState.topBlockMap || !mapState.map) return;
 
   const r = brushState.brushRadius;
-  const intensityRatio = Math.min(brushState.intensity / 0.1, 1);
+  const intensityRatio = Math.min(
+    (brushState.intensity - SPRAY_INTENSITY_MIN) / (SPRAY_INTENSITY_MAX - SPRAY_INTENSITY_MIN),
+    1
+  );
 
   if (!mouseState.leftDown) return;
 

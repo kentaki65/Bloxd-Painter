@@ -158,7 +158,11 @@ export function applyWaterLevel() {
                     row[x] = 0;
                 }
             }
-            for (let y = 0; y <= waterLevel; y++) {
+            const groundHeight = getHeight(z, x);
+            if (groundHeight === undefined)
+                continue;
+            const safeTop = Math.min(maxH - 1, Math.floor(groundHeight));
+            for (let y = safeTop + 1; y <= waterLevel; y++) {
                 if (y >= maxH)
                     break;
                 const layer = mapState.blockMap[y];

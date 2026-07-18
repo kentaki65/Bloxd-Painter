@@ -5,7 +5,7 @@ export const brushState:BrushState = {
   brushType: "default",
   mode: "height",
 
-  intensity: 0.1,
+  intensity: 0.05,
   threshold: 0.001,
   
   selectedBlock: "Grass Block",
