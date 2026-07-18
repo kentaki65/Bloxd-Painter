@@ -32,6 +32,7 @@
   border: 2px solid gray;
   background-color: white;
   align-items: center;
+  z-index: 1;
 }
 
 .dropdown {
@@ -40,8 +41,5 @@
   border: 2px solid gray;
   background-color: gray;
   border-radius: 2px;
-}
-
-.dropdownMenu > button {
   z-index: 1;
 }

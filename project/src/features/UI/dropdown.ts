@@ -24,7 +24,6 @@ export function initDropdowns(): void {
     function scheduleClose(): void {
       clearCloseTimer();
       closeTimer = window.setTimeout(() => {
-        // タイマー発火時点で、マウスが本当にoption/menuの外にいるか再確認する
         const stillInside =
           optionEl.matches(":hover") || menuEl!.matches(":hover");
         if (!stillInside) {
